@@ -1,8 +1,13 @@
-// TODO: Map-Komponente einbinden (Schritt 3)
+'use client';
+
+import dynamic from 'next/dynamic';
+
+const Map = dynamic(() => import('@/components/Map'), { ssr: false });
+
 export default function Home() {
   return (
-    <main className="flex h-screen w-full items-center justify-center bg-gray-100">
-      <p className="text-gray-500 text-lg">Zürich Mietpreis-Heatmap — Coming soon</p>
+    <main className="h-screen w-full">
+      <Map />
     </main>
   );
 }
