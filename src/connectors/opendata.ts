@@ -44,9 +44,25 @@ const QUARTIER_MAP: Record<string, { qnr: number; knr: number }> = {
   Hirzenbach: { qnr: 123, knr: 12 },
 };
 
-// Geschätzte Durchschnittsgrösse für 2-3-4 Zimmer Wohnungen in Zürich (m²)
+// Geschätzte Durchschnittsgrösse pro Zimmerzahl (m²)
 // Wird genutzt um avg_rent (CHF/Monat) aus avg_rent_m2 (CHF/m²) zu schätzen
-const AVG_APARTMENT_SIZE_M2 = 75;
+const AVG_SIZE_BY_ROOMS: Record<number, number> = {
+  1: 40,
+  2: 55,
+  3: 75,
+  4: 95,
+  5: 120,
+};
+const DEFAULT_SIZE_M2 = 75; // für kombinierte 2+3+4-Zimmer
+
+// CSV ZimmerLang-Werte je Zimmerzahl
+const ZIMMER_LANG: Record<number, string> = {
+  1: '1 Zimmer',
+  2: '2 Zimmer',
+  3: '3 Zimmer',
+  4: '4 Zimmer',
+  5: '5 und mehr Zimmer',
+};
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -86,7 +102,7 @@ function parseCSV(text: string): Record<string, string>[] {
   return rows;
 }
 
-export async function fetchFromOpendata(): Promise<PriceData[]> {
+export async function fetchFromOpendata(rooms?: number): Promise<PriceData[]> {
   const response = await fetch(CSV_URL, {
     next: { revalidate: 86400 }, // 24h Cache
   });
@@ -99,15 +115,17 @@ export async function fetchFromOpendata(): Promise<PriceData[]> {
   const rows = parseCSV(text);
   const results: PriceData[] = [];
 
+  const zimmerFilter = rooms != null ? ZIMMER_LANG[rooms] : '2 , 3  und 4 Zimmer';
+  const sizeM2 = rooms != null ? (AVG_SIZE_BY_ROOMS[rooms] ?? DEFAULT_SIZE_M2) : DEFAULT_SIZE_M2;
+
   for (const row of rows) {
-    // Filter: Statistische Quartiere, 2024, Nicht gemeinnützig, Nettomiete,
-    // 2+3+4 Zimmer kombiniert, CHF/m²
+    // Filter: Statistische Quartiere, 2024, Nicht gemeinnützig, Nettomiete, CHF/m²
     if (
       row['RaumeinheitLang'] !== 'Statistische Quartiere' ||
       row['StichtagDatJahr'] !== '2024' ||
       row['GemeinnuetzigLang'] !== 'Nicht gemeinnützig' ||
       row['PreisartLang'] !== 'netto' ||
-      row['ZimmerLang'] !== '2 , 3  und 4 Zimmer' ||
+      row['ZimmerLang'] !== zimmerFilter ||
       row['EinheitLang'] !== 'Quadratmeter' ||
       row['GliederungLang'] === 'Ganze Stadt'
     ) {
@@ -124,7 +142,7 @@ export async function fetchFromOpendata(): Promise<PriceData[]> {
     results.push({
       gemeinde_id: String(quartierInfo.qnr),
       gemeinde_name: 'Stadt Zürich',
-      avg_rent: Math.round(avg_rent_m2 * AVG_APARTMENT_SIZE_M2),
+      avg_rent: Math.round(avg_rent_m2 * sizeM2),
       avg_rent_m2,
       sample_size: parseInt(row['Sample1'], 10) || 0,
       last_updated: '2024-04-01',

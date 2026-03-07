@@ -3,6 +3,6 @@
 import type { PriceData } from '../types';
 import { fetchFromOpendata } from '../connectors/opendata';
 
-export async function getPrices(): Promise<PriceData[]> {
-  return fetchFromOpendata();
+export async function getPrices(rooms?: number): Promise<PriceData[]> {
+  return fetchFromOpendata(rooms);
 }

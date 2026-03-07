@@ -3,10 +3,14 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { getPrices } from '@/api/prices';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const roomsParam = searchParams.get('rooms');
+    const rooms = roomsParam ? parseInt(roomsParam, 10) : undefined;
+
     const [priceData, geojsonRaw] = await Promise.all([
-      getPrices(),
+      getPrices(rooms),
       readFile(
         path.join(process.cwd(), 'public/geodata/stadt-zuerich-quartiere.geojson'),
         'utf-8'

@@ -9,60 +9,78 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 interface TooltipState {
   x: number;
   y: number;
-  quartier: string;
+  name: string;
   avg_rent: number;
   avg_rent_m2: number;
   sample_size: number;
 }
 
-export default function MapComponent() {
+export default function MapComponent({ rooms }: { rooms?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const roomsRef = useRef<number | undefined>(rooms);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
+  // Immer aktuellen rooms-Wert im Ref halten
+  roomsRef.current = rooms;
+
+  // Map einmalig initialisieren
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    if (mapRef.current || !containerRef.current) return;
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/light-v11',
-      center: [8.55, 47.38],
-      zoom: 11,
+      center: [8.671, 47.427] as [number, number],
+      zoom: 9,
+      attributionControl: false,
     });
 
-    map.on('load', async () => {
-      // Preise + GeoJSON von API laden
-      const res = await fetch('/api/prices');
-      const geojson = await res.json();
+    mapRef.current = map;
 
-      map.addSource('quartiere', {
-        type: 'geojson',
-        data: geojson,
-        promoteId: 'qnr', // numerische ID für setFeatureState
+    map.on('load', async () => {
+      const rooms = roomsRef.current;
+      const pricesUrl = rooms != null ? `/api/prices?rooms=${rooms}` : '/api/prices';
+
+      const [quartiereData, gemeindenData] = await Promise.all([
+        fetch(pricesUrl).then(r => r.json()),
+        fetch('/api/gemeinden').then(r => r.json()),
+      ]);
+
+      // Gemeinden-Umrisse (neutrales Grau, kein Fill)
+      map.addSource('gemeinden', { type: 'geojson', data: gemeindenData });
+      map.addLayer({
+        id: 'gemeinden-line',
+        type: 'line',
+        source: 'gemeinden',
+        paint: { 'line-color': '#999999', 'line-width': 0.8, 'line-opacity': 0.6 },
       });
 
-      // Farbgradient: blau (günstig) → rot (teuer)
-      // Skala basierend auf avg_rent (CHF/Monat)
+      // Stadtquartiere mit Heatmap-Farben
+      map.addSource('quartiere', { type: 'geojson', data: quartiereData, promoteId: 'qnr' });
+
+      // Debug: avg_rent-Typ aus dem ersten Feature loggen
+      const firstFeature = (quartiereData as GeoJSON.FeatureCollection).features[0];
+      if (firstFeature) {
+        const val = firstFeature.properties?.avg_rent;
+        console.log('[Map] avg_rent Beispielwert:', val, '| Typ:', typeof val);
+      }
+
       map.addLayer({
         id: 'quartiere-fill',
         type: 'fill',
         source: 'quartiere',
         paint: {
           'fill-color': [
-            'interpolate',
-            ['linear'],
-            ['get', 'avg_rent'],
-            1500, '#4575b4',  // günstig – blau
+            'interpolate', ['linear'],
+            ['to-number', ['get', 'avg_rent']],
+            1500, '#4575b4',
             2000, '#74add1',
-            2200, '#fee090',  // mittel – gelb
+            2200, '#fee090',
             2500, '#f46d43',
-            3000, '#d73027',  // teuer – rot
-          ],
-          'fill-opacity': [
-            'case',
-            ['has', 'avg_rent'], 0.75,
-            0.1,
-          ],
+            3000, '#d73027',
+          ] as mapboxgl.ExpressionSpecification,
+          'fill-opacity': 0.75,
         },
       });
 
@@ -70,14 +88,9 @@ export default function MapComponent() {
         id: 'quartiere-line',
         type: 'line',
         source: 'quartiere',
-        paint: {
-          'line-color': '#ffffff',
-          'line-width': 0.8,
-          'line-opacity': 0.6,
-        },
+        paint: { 'line-color': '#ffffff', 'line-width': 0.8, 'line-opacity': 0.6 },
       });
 
-      // Hover-Highlight
       map.addLayer({
         id: 'quartiere-hover',
         type: 'fill',
@@ -89,18 +102,19 @@ export default function MapComponent() {
             ['boolean', ['feature-state', 'hovered'], false],
             0.2,
             0,
-          ],
+          ] as mapboxgl.ExpressionSpecification,
         },
       });
 
+      // Hover + Tooltip
       let hoveredId: string | number | null = null;
 
       map.on('mousemove', 'quartiere-fill', (e) => {
-        if (!e.features || e.features.length === 0) return;
+        if (!e.features?.length) return;
         map.getCanvas().style.cursor = 'pointer';
 
         const feature = e.features[0];
-        const props = feature.properties as Record<string, unknown>;
+        const props = feature.properties ?? {};
 
         if (hoveredId !== null) {
           map.setFeatureState({ source: 'quartiere', id: hoveredId }, { hovered: false });
@@ -110,14 +124,14 @@ export default function MapComponent() {
           map.setFeatureState({ source: 'quartiere', id: hoveredId }, { hovered: true });
         }
 
-        if (props['avg_rent']) {
+        if (props.avg_rent != null) {
           setTooltip({
             x: e.point.x,
             y: e.point.y,
-            quartier: String(props['qname'] ?? ''),
-            avg_rent: Number(props['avg_rent']),
-            avg_rent_m2: Number(props['avg_rent_m2']),
-            sample_size: Number(props['sample_size']),
+            name: props.qname ?? '',
+            avg_rent: Number(props.avg_rent),
+            avg_rent_m2: Number(props.avg_rent_m2),
+            sample_size: Number(props.sample_size),
           });
         }
       });
@@ -132,53 +146,58 @@ export default function MapComponent() {
       });
     });
 
-    mapRef.current = map;
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
+    // Kein Cleanup: Map bleibt für die gesamte Lebensdauer der App bestehen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Daten aktualisieren wenn Zimmerfilter wechselt
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    // Quartiere-Source existiert erst nach on('load') — sicher prüfen
+    const source = map.getSource('quartiere') as mapboxgl.GeoJSONSource | undefined;
+    if (!source) return;
+
+    const url = rooms != null ? `/api/prices?rooms=${rooms}` : '/api/prices';
+    fetch(url)
+      .then(r => r.json())
+      .then(data => source.setData(data))
+      .catch(console.error);
+  }, [rooms]);
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full" />
 
       {tooltip && (
         <div
-          style={{
-            position: 'absolute',
-            left: tooltip.x + 12,
-            top: tooltip.y - 8,
-            pointerEvents: 'none',
-          }}
-          className="bg-white rounded-lg shadow-lg px-3 py-2 text-sm border border-gray-200"
+          className="absolute bg-white rounded-lg shadow-lg px-3 py-2 text-sm border border-gray-200 pointer-events-none"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 8 }}
         >
-          <div className="font-semibold text-gray-900">{tooltip.quartier}</div>
-          <div className="text-gray-700">
-            ~{tooltip.avg_rent.toLocaleString('de-CH')} CHF/Mt
-          </div>
+          <div className="font-semibold text-gray-900">{tooltip.name}</div>
+          <div className="text-gray-700">~{tooltip.avg_rent.toLocaleString('de-CH')} CHF/Mt</div>
           <div className="text-gray-500 text-xs">
             {tooltip.avg_rent_m2.toFixed(2)} CHF/m² · n={tooltip.sample_size}
           </div>
         </div>
       )}
 
-      {/* Legende */}
       <div className="absolute bottom-8 left-4 bg-white rounded-lg shadow-lg px-3 py-2 text-xs border border-gray-200">
-        <div className="font-semibold text-gray-700 mb-1">Nettomiete (CHF/Mt)</div>
+        <div className="font-semibold text-gray-700 mb-1">Nettomiete Stadt ZH (CHF/Mt)</div>
         {[
-          { color: '#4575b4', label: '< 1\'500' },
-          { color: '#74add1', label: '1\'500–2\'000' },
-          { color: '#fee090', label: '2\'000–2\'200' },
-          { color: '#f46d43', label: '2\'200–2\'500' },
-          { color: '#d73027', label: '> 2\'500' },
+          { color: '#4575b4', label: "< 1'500" },
+          { color: '#74add1', label: "1'500–2'000" },
+          { color: '#fee090', label: "2'000–2'200" },
+          { color: '#f46d43', label: "2'200–2'500" },
+          { color: '#d73027', label: "> 2'500" },
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-2 mt-0.5">
             <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: color }} />
             <span className="text-gray-600">{label}</span>
           </div>
         ))}
-        <div className="text-gray-400 mt-1">Quelle: Statistik Stadt ZH 2024</div>
+        <div className="text-gray-400 mt-1">Statistik Stadt ZH 2024</div>
       </div>
     </div>
   );
