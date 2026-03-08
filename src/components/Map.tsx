@@ -329,45 +329,62 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
 
       {tooltip && (
         <div
-          className="absolute rounded-xl pointer-events-none"
+          className="absolute pointer-events-none"
           style={{
-            left: tooltip.x + 14,
-            top: tooltip.y - 10,
-            background: '#ffffff',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            padding: '10px 14px 10px 12px',
-            minWidth: 160,
+            left: tooltip.x + 16,
+            top: tooltip.y - 16,
+            background: 'rgba(15,15,26,0.92)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 14,
+            padding: '12px 16px',
+            minWidth: 180,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           }}
         >
-          <div className="flex items-start gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <span
-              className="mt-1 shrink-0 rounded-full"
+              className="shrink-0 rounded-full"
               style={{
-                width: 10,
-                height: 10,
+                width: 8,
+                height: 8,
                 backgroundColor: interpolateColor(tooltip.avg_rent),
+                boxShadow: `0 0 6px ${interpolateColor(tooltip.avg_rent)}`,
                 display: 'inline-block',
               }}
             />
-            <div>
-              <div className="font-bold text-gray-900 leading-tight" style={{ fontSize: 14 }}>
-                {tooltip.name}
-              </div>
-              <div className="font-semibold text-gray-800 mt-0.5" style={{ fontSize: 18, lineHeight: 1.2 }}>
-                {tooltip.avg_rent.toLocaleString('de-CH')} <span className="text-gray-500 font-normal" style={{ fontSize: 12 }}>CHF/Mt</span>
-              </div>
-              <div className="text-gray-400 mt-0.5" style={{ fontSize: 11 }}>
-                {tooltip.avg_rent_m2.toFixed(2)} CHF/m²
-                {tooltip.sample_size > 0 && <> &nbsp;·&nbsp; n={tooltip.sample_size}</>}
-                {tooltip.synthetic && <> &nbsp;·&nbsp; <span title="Schätzwert">~</span></>}
-              </div>
-            </div>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', fontWeight: 500, letterSpacing: '0.02em' }}>
+              {tooltip.name}
+            </span>
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: '#ffffff', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+            {tooltip.avg_rent.toLocaleString('de-CH')}
+            <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.4)', marginLeft: 4 }}>CHF/Mt</span>
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 6, display: 'flex', gap: 8 }}>
+            <span>{tooltip.avg_rent_m2.toFixed(2)} CHF/m²</span>
+            {tooltip.sample_size > 0 && <span>n={tooltip.sample_size}</span>}
+            {tooltip.synthetic && <span title="Schätzwert">~Schätzwert</span>}
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-8 left-4 bg-white rounded-lg shadow-lg px-3 py-2 text-xs border border-gray-200">
-        <div className="font-semibold text-gray-700 mb-1">Nettomiete Stadt ZH (CHF/Mt)</div>
+      <div
+        className="absolute bottom-8 left-4 text-xs"
+        style={{
+          background: 'rgba(15,15,26,0.75)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 14,
+          padding: '12px 14px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600, marginBottom: 8, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Nettomiete CHF/Mt
+        </div>
         {[
           { color: '#4575b4', label: "< 1'600" },
           { color: '#74add1', label: "1'600–2'000" },
@@ -375,12 +392,21 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
           { color: '#f46d43', label: "2'600–3'500" },
           { color: '#d73027', label: "> 3'500" },
         ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-2 mt-0.5">
-            <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: color }} />
-            <span className="text-gray-600">{label}</span>
+          <div key={label} className="flex items-center gap-2" style={{ marginTop: 5 }}>
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: 4,
+                backgroundColor: color,
+                boxShadow: `0 0 6px ${color}80`,
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</span>
           </div>
         ))}
-        <div className="text-gray-400 mt-1">Statistik Stadt ZH 2024</div>
+        <div style={{ color: 'rgba(255,255,255,0.2)', marginTop: 8, fontSize: 10 }}>Statistik Stadt ZH 2024</div>
       </div>
     </div>
   );
