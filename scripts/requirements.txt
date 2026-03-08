@@ -1,0 +1,9 @@
+# Homegate Scraper — Python-Dependencies
+# pip install -r scripts/requirements.txt
+
+requests>=2.31.0
+playwright>=1.40.0      # headless browser (Fallback-Option)
+playwright-stealth>=1.0.6
+
+# Optional: für schnelleres Parsen grosser JSON-Dateien
+# orjson>=3.9.0

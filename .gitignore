@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Scraper-Daten (lokal, nicht committen)
+/data/raw-listings.json
+/data/homegate-cookies.json
+/data/probe-response.json
+/data/next-data.json
+/data/screenshots/
+/public/data/
