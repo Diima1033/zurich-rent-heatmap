@@ -3,25 +3,37 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { SearchResult } from '@/types';
 
 const FILL_COLOR_EXPRESSION: mapboxgl.ExpressionSpecification = [
   'interpolate', ['linear'],
   ['to-number', ['get', 'avg_rent']],
   1200, '#4575b4',
   1600, '#74add1',
-  2000, '#ffffbf',
+  2000, '#fee090',
   2600, '#f46d43',
   3500, '#d73027',
 ];
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
+function getGeomBbox(geometry: GeoJSON.Geometry): [number, number, number, number] {
+  const coords: number[][] = [];
+  const collect = (ring: number[][]) => ring.forEach(c => coords.push(c));
+  if (geometry.type === 'Polygon') geometry.coordinates.forEach(r => collect(r));
+  else if (geometry.type === 'MultiPolygon') geometry.coordinates.forEach(p => p.forEach(r => collect(r)));
+  if (!coords.length) return [0, 0, 0, 0];
+  const lons = coords.map(c => c[0]);
+  const lats = coords.map(c => c[1]);
+  return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+}
+
 // Interpoliert eine Farbe aus der FILL_COLOR_EXPRESSION für einen gegebenen avg_rent-Wert
 function interpolateColor(rent: number): string {
   const stops: [number, string][] = [
     [1200, '#4575b4'],
     [1600, '#74add1'],
-    [2000, '#ffffbf'],
+    [2000, '#fee090'],
     [2600, '#f46d43'],
     [3500, '#d73027'],
   ];
@@ -58,10 +70,19 @@ interface TooltipState {
   synthetic?: boolean; // kantonal = synthetische Daten
 }
 
-export default function MapComponent({ rooms }: { rooms?: number }) {
+export default function MapComponent({
+  rooms,
+  selectedResult,
+  onSearchDataReady,
+}: {
+  rooms?: number;
+  selectedResult?: SearchResult | null;
+  onSearchDataReady?: (data: SearchResult[]) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const roomsRef = useRef<number | undefined>(rooms);
+  const selectedFeatureRef = useRef<{ source: string; id: string | number } | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [legendVisible, setLegendVisible] = useState(true);
 
@@ -99,6 +120,33 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         fetch(gemeindenPricesUrl).then(r => r.json()),
       ]);
 
+      // Search-Daten aus den geladenen GeoJSON-Features extrahieren
+      if (onSearchDataReady) {
+        const quartiereResults: SearchResult[] = (quartiereData as GeoJSON.FeatureCollection).features
+          .filter(f => f.properties?.qname)
+          .map(f => {
+            const bbox = getGeomBbox(f.geometry);
+            return {
+              name: f.properties!.qname as string,
+              layer: 'quartiere' as const,
+              center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2] as [number, number],
+              bbox,
+            };
+          });
+        const gemeindenResults: SearchResult[] = (gemeindenPricesData as GeoJSON.FeatureCollection).features
+          .filter(f => f.properties?.name && f.properties?.avg_rent != null)
+          .map(f => {
+            const bbox = getGeomBbox(f.geometry);
+            return {
+              name: f.properties!.name as string,
+              layer: 'gemeinden' as const,
+              center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2] as [number, number],
+              bbox,
+            };
+          });
+        onSearchDataReady([...quartiereResults, ...gemeindenResults]);
+      }
+
       // Gemeinden mit Heatmap-Farben (kantonale Synthetik-Daten)
       // promoteId: 'geodb_oid' statt 'bfs' — BFS ist nicht eindeutig (Exklaven!)
       map.addSource('gemeinden', { type: 'geojson', data: gemeindenPricesData, promoteId: 'geodb_oid' });
@@ -113,8 +161,8 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
             '#4575b4',
             1600, '#74add1',
             2000, '#fee090',
-            2400, '#f46d43',
-            2800, '#d73027',
+            2600, '#f46d43',
+            3500, '#d73027',
           ] as mapboxgl.ExpressionSpecification,
           'fill-opacity': 0.65,
         },
@@ -124,7 +172,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         id: 'gemeinden-line',
         type: 'line',
         source: 'gemeinden',
-        paint: { 'line-color': '#1a1a2e', 'line-width': 0.6, 'line-opacity': 0.4 },
+        paint: { 'line-color': '#ffffff', 'line-width': 0.5, 'line-opacity': 0.6 },
       }, 'waterway-label');
 
       map.addLayer({
@@ -135,7 +183,10 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
           'fill-color': '#ffffff',
           'fill-opacity': [
             'case',
-            ['boolean', ['feature-state', 'hovered'], false],
+            ['any',
+              ['boolean', ['feature-state', 'hovered'], false],
+              ['boolean', ['feature-state', 'selected'], false],
+            ],
             0.2,
             0,
           ] as mapboxgl.ExpressionSpecification,
@@ -196,7 +247,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         id: 'quartiere-line',
         type: 'line',
         source: 'quartiere',
-        paint: { 'line-color': '#1a1a2e', 'line-width': 0.8, 'line-opacity': 0.5 },
+        paint: { 'line-color': '#ffffff', 'line-width': 0.5, 'line-opacity': 0.6 },
       });
 
       map.addLayer({
@@ -207,7 +258,10 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
           'fill-color': '#ffffff',
           'fill-opacity': [
             'case',
-            ['boolean', ['feature-state', 'hovered'], false],
+            ['any',
+              ['boolean', ['feature-state', 'hovered'], false],
+              ['boolean', ['feature-state', 'selected'], false],
+            ],
             0.2,
             0,
           ] as mapboxgl.ExpressionSpecification,
@@ -342,12 +396,21 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         }
       });
 
-      // Tap auf leere Kartenfläche → Tooltip schliessen
+      // Tap auf leere Kartenfläche → Tooltip + Selektion löschen
       map.on('click', (e) => {
         const features = map.queryRenderedFeatures(e.point, {
           layers: ['quartiere-fill', 'gemeinden-fill'],
         });
-        if (!features.length) setTooltip(null);
+        if (!features.length) {
+          setTooltip(null);
+          if (selectedFeatureRef.current) {
+            map.setFeatureState(
+              { source: selectedFeatureRef.current.source, id: selectedFeatureRef.current.id },
+              { selected: false }
+            );
+            selectedFeatureRef.current = null;
+          }
+        }
       });
     });
 
@@ -386,6 +449,53 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         .catch(console.error);
     }
   }, [rooms]);
+
+  // Auf gewähltes Suchergebnis zoomen, Tooltip anzeigen und Feature hervorheben
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedResult) return;
+
+    // Vorherige Selektion sofort löschen
+    if (selectedFeatureRef.current) {
+      map.setFeatureState(
+        { source: selectedFeatureRef.current.source, id: selectedFeatureRef.current.id },
+        { selected: false }
+      );
+      selectedFeatureRef.current = null;
+    }
+
+    const source = selectedResult.layer === 'quartiere' ? 'quartiere' : 'gemeinden';
+    const layerId = selectedResult.layer === 'quartiere' ? 'quartiere-fill' : 'gemeinden-fill';
+    const nameField = selectedResult.layer === 'quartiere' ? 'qname' : 'name';
+
+    const showTooltip = () => {
+      const features = map.queryRenderedFeatures(undefined, { layers: [layerId] });
+      const feature = features.find(f => f.properties?.[nameField] === selectedResult.name);
+      if (feature?.properties) {
+        // Feature hervorheben
+        if (feature.id != null) {
+          map.setFeatureState({ source, id: feature.id }, { selected: true });
+          selectedFeatureRef.current = { source, id: feature.id };
+        }
+        const pt = map.project(selectedResult.center as [number, number]);
+        setTooltip({
+          x: pt.x,
+          y: pt.y,
+          name: selectedResult.name,
+          avg_rent: Number(feature.properties.avg_rent),
+          avg_rent_m2: Number(feature.properties.avg_rent_m2),
+          sample_size: Number(feature.properties.sample_size),
+          synthetic: feature.properties.source === 'scraper',
+        });
+      }
+    };
+
+    map.once('moveend', showTooltip);
+    map.fitBounds(
+      [[selectedResult.bbox[0], selectedResult.bbox[1]], [selectedResult.bbox[2], selectedResult.bbox[3]]],
+      { padding: 80, duration: 700, maxZoom: 14 }
+    );
+  }, [selectedResult]);
 
   return (
     <div className="relative w-full h-full">
@@ -494,7 +604,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
           {[
             { color: '#4575b4', label: "< 1'600" },
             { color: '#74add1', label: "1'600–2'000" },
-            { color: '#ffffbf', label: "2'000–2'600" },
+            { color: '#fee090', label: "2'000–2'600" },
             { color: '#f46d43', label: "2'600–3'500" },
             { color: '#d73027', label: "> 3'500" },
           ].map(({ color, label }) => (

@@ -12,6 +12,13 @@ export interface PriceData {
   kreis?: number;
 }
 
+export interface SearchResult {
+  name: string;
+  layer: 'quartiere' | 'gemeinden';
+  center: [number, number];
+  bbox: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
+}
+
 export interface MapConfig {
   zoom_level: 'gemeinde' | 'quartier';
   filter_rooms?: 1 | 2 | 3 | 4 | 5;

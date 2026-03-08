@@ -1,13 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/Sidebar';
+import { SearchResult } from '@/types';
 
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 
 export default function Home() {
   const [rooms, setRooms] = useState<number | undefined>(undefined);
+  const [searchData, setSearchData] = useState<SearchResult[]>([]);
+  const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
+
+  const handleSearchDataReady = useCallback((data: SearchResult[]) => {
+    setSearchData(data);
+  }, []);
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#0f0f1a]">
@@ -29,12 +36,21 @@ export default function Home() {
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
         {/* Desktop sidebar */}
         <div className="hidden md:block">
-          <Sidebar rooms={rooms} onChange={setRooms} />
+          <Sidebar
+            rooms={rooms}
+            onChange={setRooms}
+            searchData={searchData}
+            onSelectResult={setSelectedResult}
+          />
         </div>
 
         {/* Map — takes all remaining space */}
         <div className="flex-1 min-h-0">
-          <Map rooms={rooms} />
+          <Map
+            rooms={rooms}
+            selectedResult={selectedResult}
+            onSearchDataReady={handleSearchDataReady}
+          />
         </div>
 
         {/* Mobile bottom bar */}
