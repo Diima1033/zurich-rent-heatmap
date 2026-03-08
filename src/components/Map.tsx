@@ -247,6 +247,25 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         setTooltip(null);
       });
 
+      // Tap/Click für Touch-Geräte (Gemeinden)
+      map.on('click', 'gemeinden-fill', (e) => {
+        if (!e.features?.length) return;
+        const props = e.features[0].properties ?? {};
+        if (props.avg_rent != null) {
+          setTooltip(prev =>
+            prev?.name === (props.name ?? '') ? null : {
+              x: e.point.x,
+              y: e.point.y,
+              name: props.name ?? '',
+              avg_rent: Number(props.avg_rent),
+              avg_rent_m2: Number(props.avg_rent_m2),
+              sample_size: Number(props.sample_size),
+              synthetic: props.source === 'scraper',
+            }
+          );
+        }
+      });
+
       // Hover + Tooltip für Quartiere (Stadt Zürich Detail-Layer)
       let hoveredId: string | number | null = null;
 
@@ -284,6 +303,32 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         }
         hoveredId = null;
         setTooltip(null);
+      });
+
+      // Tap/Click für Touch-Geräte (Quartiere)
+      map.on('click', 'quartiere-fill', (e) => {
+        if (!e.features?.length) return;
+        const props = e.features[0].properties ?? {};
+        if (props.avg_rent != null) {
+          setTooltip(prev =>
+            prev?.name === (props.qname ?? '') ? null : {
+              x: e.point.x,
+              y: e.point.y,
+              name: props.qname ?? '',
+              avg_rent: Number(props.avg_rent),
+              avg_rent_m2: Number(props.avg_rent_m2),
+              sample_size: Number(props.sample_size),
+            }
+          );
+        }
+      });
+
+      // Tap auf leere Kartenfläche → Tooltip schliessen
+      map.on('click', (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ['quartiere-fill', 'gemeinden-fill'],
+        });
+        if (!features.length) setTooltip(null);
       });
     });
 
@@ -327,12 +372,18 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
 
-      {tooltip && (
+      {tooltip && (() => {
+        const containerW = containerRef.current?.offsetWidth ?? window.innerWidth;
+        const tooltipW = 196;
+        const flipLeft = tooltip.x + tooltipW + 24 > containerW;
+        const posStyle = flipLeft
+          ? { right: containerW - tooltip.x + 8, top: Math.max(8, tooltip.y - 16) }
+          : { left: tooltip.x + 16, top: Math.max(8, tooltip.y - 16) };
+        return (
         <div
-          className="absolute pointer-events-none"
+          className="absolute pointer-events-none z-20"
           style={{
-            left: tooltip.x + 16,
-            top: tooltip.y - 16,
+            ...posStyle,
             background: 'rgba(15,15,26,0.92)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
@@ -368,10 +419,12 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
             {tooltip.synthetic && <span title="Schätzwert">~Schätzwert</span>}
           </div>
         </div>
-      )}
+        );
+      })()}
 
+      {/* Legend — mobile: bottom-right above bottom bar; desktop: bottom-left */}
       <div
-        className="absolute bottom-8 left-4 text-xs"
+        className="absolute bottom-20 right-4 md:bottom-8 md:left-4 md:right-auto text-xs z-10"
         style={{
           background: 'rgba(15,15,26,0.75)',
           backdropFilter: 'blur(16px)',
