@@ -74,7 +74,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: 'mapbox://styles/mapbox/light-v11',
       center: [8.5417, 47.3769] as [number, number],
       zoom: 12,
       attributionControl: false,
@@ -83,6 +83,13 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
     mapRef.current = map;
 
     map.on('load', async () => {
+      // Label-Farben auf dunkelblau setzen (gut lesbar auf hellem Hintergrund)
+      map.getStyle().layers
+        .filter(l => l.type === 'symbol')
+        .forEach(l => {
+          map.setPaintProperty(l.id, 'text-color', '#1a1a2e');
+        });
+
       const rooms = roomsRef.current;
       const pricesUrl = rooms != null ? `/api/prices?rooms=${rooms}` : '/api/prices';
       const gemeindenPricesUrl = rooms != null ? `/api/gemeinden-prices?rooms=${rooms}` : '/api/gemeinden-prices';
@@ -117,7 +124,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         id: 'gemeinden-line',
         type: 'line',
         source: 'gemeinden',
-        paint: { 'line-color': '#ffffff', 'line-width': 0.6, 'line-opacity': 0.5 },
+        paint: { 'line-color': '#1a1a2e', 'line-width': 0.6, 'line-opacity': 0.4 },
       }, 'waterway-label');
 
       map.addLayer({
@@ -189,7 +196,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         id: 'quartiere-line',
         type: 'line',
         source: 'quartiere',
-        paint: { 'line-color': '#ffffff', 'line-width': 0.8, 'line-opacity': 0.6 },
+        paint: { 'line-color': '#1a1a2e', 'line-width': 0.8, 'line-opacity': 0.5 },
       });
 
       map.addLayer({
@@ -205,6 +212,17 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
             0,
           ] as mapboxgl.ExpressionSpecification,
         },
+      });
+
+      // Label-Layer nach oben verschieben damit sie über den Fill-Layern erscheinen
+      const labelLayerIds = ['place-label', 'settlement-label', 'settlement-subdivision-label'];
+      labelLayerIds.forEach(id => {
+        if (map.getLayer(id)) {
+          map.moveLayer(id);
+          map.setPaintProperty(id, 'text-color', '#1a1a2e');
+          map.setPaintProperty(id, 'text-halo-color', '#ffffff');
+          map.setPaintProperty(id, 'text-halo-width', 1.5);
+        }
       });
 
       // Hover + Tooltip für Gemeinden (kantonaler Layer)
