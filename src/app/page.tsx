@@ -10,7 +10,7 @@ export default function Home() {
   const [rooms, setRooms] = useState<number | undefined>(undefined);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#0f0f1a]">
+    <div className="flex flex-col h-[100dvh] w-full bg-[#0f0f1a]">
       {/* Header */}
       <header className="flex items-center justify-between px-4 md:px-6 py-2 md:py-3 bg-[#0f0f1a] border-b border-white/10 shrink-0">
         <div className="flex items-center gap-2 md:gap-3">

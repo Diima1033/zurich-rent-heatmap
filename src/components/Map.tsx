@@ -63,6 +63,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const roomsRef = useRef<number | undefined>(rooms);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [legendVisible, setLegendVisible] = useState(true);
 
   // Immer aktuellen rooms-Wert im Ref halten
   roomsRef.current = rooms;
@@ -73,7 +74,7 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/dark-v11',
       center: [8.5417, 47.3769] as [number, number],
       zoom: 12,
       attributionControl: false,
@@ -422,45 +423,80 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
         );
       })()}
 
-      {/* Legend — mobile: bottom-right above bottom bar; desktop: bottom-left */}
-      <div
-        className="absolute bottom-20 right-4 md:bottom-8 md:left-4 md:right-auto text-xs z-10"
+      {/* Legend toggle button — mobile only, top-right */}
+      <button
+        className="md:hidden absolute top-16 right-2 z-20 flex items-center justify-center"
+        onClick={() => setLegendVisible(v => !v)}
         style={{
-          background: 'rgba(15,15,26,0.75)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 14,
-          padding: '12px 14px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+          width: 32,
+          height: 32,
+          borderRadius: 10,
+          background: 'rgba(15,15,26,0.85)',
+          border: '1px solid rgba(255,255,255,0.12)',
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: 14,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
         }}
+        aria-label={legendVisible ? 'Legende ausblenden' : 'Legende einblenden'}
       >
-        <div style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600, marginBottom: 8, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          Nettomiete CHF/Mt
-        </div>
-        {[
-          { color: '#4575b4', label: "< 1'600" },
-          { color: '#74add1', label: "1'600–2'000" },
-          { color: '#ffffbf', label: "2'000–2'600" },
-          { color: '#f46d43', label: "2'600–3'500" },
-          { color: '#d73027', label: "> 3'500" },
-        ].map(({ color, label }) => (
-          <div key={label} className="flex items-center gap-2" style={{ marginTop: 5 }}>
-            <div
-              style={{
-                width: 14,
-                height: 14,
-                borderRadius: 4,
-                backgroundColor: color,
-                boxShadow: `0 0 6px ${color}80`,
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+        {legendVisible ? '▼' : '▲'}
+      </button>
+
+      {/* Legend — mobile: top-right (toggleable); desktop: bottom-left */}
+      {legendVisible && (
+        <div
+          className="absolute top-16 right-2 md:top-auto md:bottom-8 md:left-4 md:right-auto text-xs z-10"
+          style={{
+            background: 'rgba(15,15,26,0.75)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 14,
+            padding: '12px 14px',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+          }}
+        >
+          {/* Close button on mobile */}
+          <div className="md:hidden flex items-center justify-between mb-2">
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Nettomiete CHF/Mt
+            </div>
+            <button
+              onClick={() => setLegendVisible(false)}
+              style={{ color: 'rgba(255,255,255,0.4)', fontSize: 16, lineHeight: 1, marginLeft: 12 }}
+              aria-label="Legende schliessen"
+            >
+              ×
+            </button>
           </div>
-        ))}
-        <div style={{ color: 'rgba(255,255,255,0.2)', marginTop: 8, fontSize: 10 }}>Statistik Stadt ZH 2024</div>
-      </div>
+          <div className="hidden md:block" style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 600, marginBottom: 8, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Nettomiete CHF/Mt
+          </div>
+          {[
+            { color: '#4575b4', label: "< 1'600" },
+            { color: '#74add1', label: "1'600–2'000" },
+            { color: '#ffffbf', label: "2'000–2'600" },
+            { color: '#f46d43', label: "2'600–3'500" },
+            { color: '#d73027', label: "> 3'500" },
+          ].map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-2" style={{ marginTop: 5 }}>
+              <div
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: 4,
+                  backgroundColor: color,
+                  boxShadow: `0 0 6px ${color}80`,
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ color: 'rgba(255,255,255,0.6)' }}>{label}</span>
+            </div>
+          ))}
+          <div style={{ color: 'rgba(255,255,255,0.2)', marginTop: 8, fontSize: 10 }}>Statistik Stadt ZH 2024</div>
+        </div>
+      )}
     </div>
   );
 }
