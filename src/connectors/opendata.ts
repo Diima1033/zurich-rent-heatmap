@@ -1,13 +1,17 @@
 // AKTIV: Phase 1 — Öffentliche CSVs von Statistik Stadt Zürich
-// Datenquelle: Mietpreiserhebung 2024, Statistische Quartiere, CHF/m²
+// Datenquelle: Mietpreiserhebung 2024
 import type { PriceData } from '../types';
 
 const CSV_URL =
   'https://data.stadt-zuerich.ch/dataset/bau_whg_mpe_mietpreis_raum_zizahl_gn_jahr_od5161/download/BAU516OD5161.csv';
 
-// Statisches Mapping: Quartiername → {qnr, knr}
-// Quelle: public/geodata/stadt-zuerich-quartiere.geojson
-const QUARTIER_MAP: Record<string, { qnr: number; knr: number }> = {
+// ── "Alle" (rooms=undefined) ──────────────────────────────────────────────────
+// Quelle: Statistische Quartiere (34), EinheitLang='Quadratmeter' (CHF/m²)
+// qu50 ist CHF/m², wird mit geschätzter Fläche multipliziert → avg_rent (CHF/Mt)
+const DEFAULT_SIZE_M2 = 75;
+
+// Mapping Quartiername → {qnr, knr} für Statistische Quartiere
+const STAT_QUARTIER_MAP: Record<string, { qnr: number; knr: number }> = {
   Rathaus: { qnr: 11, knr: 1 },
   Hochschulen: { qnr: 12, knr: 1 },
   Lindenhof: { qnr: 13, knr: 1 },
@@ -44,8 +48,39 @@ const QUARTIER_MAP: Record<string, { qnr: number; knr: number }> = {
   Hirzenbach: { qnr: 123, knr: 12 },
 };
 
-// Geschätzte Durchschnittsgrösse pro Zimmerzahl (m²)
-// Wird genutzt um avg_rent (CHF/Monat) aus avg_rent_m2 (CHF/m²) zu schätzen
+// ── Zimmerzahl-Filter (rooms=2/3/4) ──────────────────────────────────────────
+// Quelle: Stadtquartiere (22), EinheitLang='Wohnung' (CHF/Mt, absolut)
+// qu50 ist direkt CHF/Mt — keine Umrechnung nötig.
+// 6 Stadtquartiere decken einen ganzen Kreis ab und werden auf alle zugehörigen
+// Statistischen Quartiere aufgeteilt (gleicher Preis für alle im Kreis).
+const STADTQUARTIER_MAP: Record<string, number[]> = {
+  // Kreis-Einträge → expandiert auf alle zugehörigen Stat.Quartiere
+  'Altstadt (Kreis 1)':        [11, 12, 13, 14],    // Rathaus, Hochschulen, Lindenhof, City
+  'Wiedikon (Kreis 3)':        [31, 33, 34],         // Alt-Wiedikon, Friesenberg, Sihlfeld
+  'Aussersihl (Kreis 4)':      [41, 42, 44],         // Werd, Langstrasse, Hard
+  'Industriequartier (Kreis 5)': [51, 52],           // Gewerbeschule, Escher Wyss
+  'Riesbach (Kreis 8)':        [81, 82, 83],         // Seefeld, Mühlebach, Weinegg
+  'Schwamendingen (Kreis 12)': [121, 122, 123],      // Saatlen, Schwamendingen-Mitte, Hirzenbach
+  // Direkte 1:1-Einträge
+  Wollishofen:  [21],
+  Leimbach:     [23],
+  Enge:         [24],
+  Unterstrass:  [61],
+  Oberstrass:   [63],
+  Fluntern:     [71],
+  Hottingen:    [72],
+  Hirslanden:   [73],
+  Witikon:      [74],
+  Albisrieden:  [91],
+  Altstetten:   [92],
+  'Höngg':      [101],
+  Wipkingen:    [102],
+  Affoltern:    [111],
+  Oerlikon:     [115],
+  Seebach:      [119],
+};
+
+// Geschätzte m² pro Zimmerzahl — nur für avg_rent_m2-Anzeige im Tooltip
 const AVG_SIZE_BY_ROOMS: Record<number, number> = {
   1: 40,
   2: 55,
@@ -53,15 +88,11 @@ const AVG_SIZE_BY_ROOMS: Record<number, number> = {
   4: 95,
   5: 120,
 };
-const DEFAULT_SIZE_M2 = 75; // für kombinierte 2+3+4-Zimmer
 
-// CSV ZimmerLang-Werte je Zimmerzahl
 const ZIMMER_LANG: Record<number, string> = {
-  1: '1 Zimmer',
   2: '2 Zimmer',
   3: '3 Zimmer',
   4: '4 Zimmer',
-  5: '5 und mehr Zimmer',
 };
 
 function parseCSVLine(line: string): string[] {
@@ -115,41 +146,83 @@ export async function fetchFromOpendata(rooms?: number): Promise<PriceData[]> {
   const rows = parseCSV(text);
   const results: PriceData[] = [];
 
-  const zimmerFilter = rooms != null ? ZIMMER_LANG[rooms] : '2 , 3  und 4 Zimmer';
-  const sizeM2 = rooms != null ? (AVG_SIZE_BY_ROOMS[rooms] ?? DEFAULT_SIZE_M2) : DEFAULT_SIZE_M2;
+  if (rooms == null) {
+    // ── "Alle": Statistische Quartiere (34), CHF/m² × Fläche ─────────────────
+    for (const row of rows) {
+      if (
+        row['RaumeinheitLang'] !== 'Statistische Quartiere' ||
+        row['StichtagDatJahr'] !== '2024' ||
+        row['GemeinnuetzigLang'] !== 'Nicht gemeinnützig' ||
+        row['PreisartLang'] !== 'netto' ||
+        row['ZimmerLang'] !== '2 , 3  und 4 Zimmer' ||
+        row['EinheitLang'] !== 'Quadratmeter' ||
+        row['GliederungLang'] === 'Ganze Stadt'
+      ) {
+        continue;
+      }
 
-  for (const row of rows) {
-    // Filter: Statistische Quartiere, 2024, Nicht gemeinnützig, Nettomiete, CHF/m²
-    if (
-      row['RaumeinheitLang'] !== 'Statistische Quartiere' ||
-      row['StichtagDatJahr'] !== '2024' ||
-      row['GemeinnuetzigLang'] !== 'Nicht gemeinnützig' ||
-      row['PreisartLang'] !== 'netto' ||
-      row['ZimmerLang'] !== zimmerFilter ||
-      row['EinheitLang'] !== 'Quadratmeter' ||
-      row['GliederungLang'] === 'Ganze Stadt'
-    ) {
-      continue;
+      const name = row['GliederungLang'];
+      const quartierInfo = STAT_QUARTIER_MAP[name];
+      if (!quartierInfo) continue;
+
+      const avg_rent_m2 = parseFloat(row['qu50']);
+      if (isNaN(avg_rent_m2)) continue;
+
+      results.push({
+        gemeinde_id: String(quartierInfo.qnr),
+        gemeinde_name: 'Stadt Zürich',
+        avg_rent: Math.round(avg_rent_m2 * DEFAULT_SIZE_M2),
+        avg_rent_m2,
+        sample_size: parseInt(row['Sample1'], 10) || 0,
+        last_updated: '2024-04-01',
+        source: 'opendata',
+        quartier: name,
+        kreis: quartierInfo.knr,
+      });
     }
+  } else {
+    // ── Zimmerzahl-Filter: Stadtquartiere (22), CHF/Mt direkt aus qu50 ────────
+    const zimmerFilter = ZIMMER_LANG[rooms];
+    if (!zimmerFilter) return [];
+    const sizeM2 = AVG_SIZE_BY_ROOMS[rooms] ?? DEFAULT_SIZE_M2;
 
-    const name = row['GliederungLang'];
-    const quartierInfo = QUARTIER_MAP[name];
-    if (!quartierInfo) continue;
+    for (const row of rows) {
+      if (
+        row['RaumeinheitLang'] !== 'Stadtquartiere' ||
+        row['StichtagDatJahr'] !== '2024' ||
+        row['GemeinnuetzigLang'] !== 'Nicht gemeinnützig' ||
+        row['PreisartLang'] !== 'netto' ||
+        row['ZimmerLang'] !== zimmerFilter ||
+        row['EinheitLang'] !== 'Wohnung' ||
+        row['GliederungLang'] === 'Ganze Stadt'
+      ) {
+        continue;
+      }
 
-    const avg_rent_m2 = parseFloat(row['qu50']); // Median CHF/m²
-    if (isNaN(avg_rent_m2)) continue;
+      const name = row['GliederungLang'];
+      const qnrs = STADTQUARTIER_MAP[name];
+      if (!qnrs) continue;
 
-    results.push({
-      gemeinde_id: String(quartierInfo.qnr),
-      gemeinde_name: 'Stadt Zürich',
-      avg_rent: Math.round(avg_rent_m2 * sizeM2),
-      avg_rent_m2,
-      sample_size: parseInt(row['Sample1'], 10) || 0,
-      last_updated: '2024-04-01',
-      source: 'opendata',
-      quartier: name,
-      kreis: quartierInfo.knr,
-    });
+      const avg_rent = parseFloat(row['qu50']); // CHF/Mt, direkt aus CSV
+      if (isNaN(avg_rent)) continue;
+
+      const avg_rent_m2 = avg_rent / sizeM2;
+
+      // Kreis-Einträge auf alle zugehörigen Stat.Quartiere expandieren
+      for (const qnr of qnrs) {
+        results.push({
+          gemeinde_id: String(qnr),
+          gemeinde_name: 'Stadt Zürich',
+          avg_rent: Math.round(avg_rent),
+          avg_rent_m2,
+          sample_size: parseInt(row['Sample1'], 10) || 0,
+          last_updated: '2024-04-01',
+          source: 'opendata',
+          quartier: name,
+          kreis: Math.floor(qnr / 10),
+        });
+      }
+    }
   }
 
   return results;

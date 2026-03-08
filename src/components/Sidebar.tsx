@@ -6,11 +6,9 @@ interface SidebarProps {
 }
 
 const ROOM_OPTIONS = [
-  { value: 1, label: '1 Zi.' },
   { value: 2, label: '2 Zi.' },
   { value: 3, label: '3 Zi.' },
   { value: 4, label: '4 Zi.' },
-  { value: 5, label: '5+ Zi.' },
 ];
 
 export default function Sidebar({ rooms, onChange }: SidebarProps) {
@@ -29,7 +27,7 @@ export default function Sidebar({ rooms, onChange }: SidebarProps) {
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
-            Alle (2–4 Zi.)
+            Alle Zimmerzahlen
           </button>
           {ROOM_OPTIONS.map(({ value, label }) => (
             <button
