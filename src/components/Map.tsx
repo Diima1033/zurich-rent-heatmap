@@ -41,8 +41,8 @@ export default function MapComponent({ rooms }: { rooms?: number }) {
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/light-v11',
-      center: [8.671, 47.427] as [number, number],
-      zoom: 9,
+      center: [8.5417, 47.3769] as [number, number],
+      zoom: 12,
       attributionControl: false,
     });
 
