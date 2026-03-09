@@ -469,7 +469,7 @@ export default function MapComponent({
     const nameField = selectedResult.layer === 'quartiere' ? 'qname' : 'name';
 
     const showTooltip = () => {
-      const features = map.queryRenderedFeatures(undefined, { layers: [layerId] });
+      const features = map.queryRenderedFeatures(map.getBounds()!.toArray() as unknown as [mapboxgl.PointLike, mapboxgl.PointLike], { layers: [layerId] });
       const feature = features.find(f => f.properties?.[nameField] === selectedResult.name);
       if (feature?.properties) {
         // Feature hervorheben
