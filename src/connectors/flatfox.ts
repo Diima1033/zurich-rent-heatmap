@@ -327,7 +327,7 @@ function getEffectiveRent(listing: FlatfoxListing): number | null {
   return rent;
 }
 
-async function fetchPage(offset: number, roomsFilter?: number): Promise<FlatfoxResponse> {
+async function fetchPage(offset: number): Promise<FlatfoxResponse> {
   const params = new URLSearchParams({
     canton: 'ZH',
     object_category: 'APARTMENT',
@@ -335,9 +335,6 @@ async function fetchPage(offset: number, roomsFilter?: number): Promise<FlatfoxR
     limit: String(PAGE_SIZE),
     offset: String(offset),
   });
-  if (roomsFilter !== undefined) {
-    params.set('number_of_rooms', `${roomsFilter}.0`);
-  }
 
   const res = await fetch(`${FLATFOX_API}?${params}`, {
     next: { revalidate: 3600 }, // 1h Cache
@@ -349,7 +346,7 @@ async function fetchPage(offset: number, roomsFilter?: number): Promise<FlatfoxR
 }
 
 // Aggregiert Listings nach PLZ → PriceData[]
-function aggregate(listings: FlatfoxListing[]): PriceData[] {
+function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[] {
   const byPlz = new Map<
     string,
     { city: string; rents: number[]; rentsM2: number[]; updated: string }
@@ -358,6 +355,17 @@ function aggregate(listings: FlatfoxListing[]): PriceData[] {
   for (const listing of listings) {
     const plz = String(listing.zipcode);
     if (!isZurichPlz(listing.zipcode)) continue;
+
+    // Clientseitiger Zimmerfilter: 1+ = [1.0, 2.0), 2+ = [2.0, 3.0), ..., 5+ = [5.0, ∞)
+    if (roomsFilter !== undefined) {
+      const rooms = parseFloat(listing.number_of_rooms ?? '');
+      if (isNaN(rooms)) continue;
+      if (roomsFilter < 5) {
+        if (rooms < roomsFilter || rooms >= roomsFilter + 1) continue;
+      } else {
+        if (rooms < 5) continue;
+      }
+    }
 
     const rent = getEffectiveRent(listing);
     if (!rent) continue;
@@ -413,7 +421,7 @@ export async function fetchFromFlatfox(roomsFilter?: number): Promise<PriceData[
   const allListings: FlatfoxListing[] = [];
 
   // Erste Seite laden um Gesamtanzahl zu kennen
-  const first = await fetchPage(0, roomsFilter);
+  const first = await fetchPage(0);
   allListings.push(...first.results);
 
   const totalPages = Math.min(Math.ceil(first.count / PAGE_SIZE), MAX_PAGES);
@@ -423,11 +431,11 @@ export async function fetchFromFlatfox(roomsFilter?: number): Promise<PriceData[
   for (let page = 1; page < totalPages; page += batchSize) {
     const batch = Array.from(
       { length: Math.min(batchSize, totalPages - page) },
-      (_, i) => fetchPage((page + i) * PAGE_SIZE, roomsFilter),
+      (_, i) => fetchPage((page + i) * PAGE_SIZE),
     );
     const pages = await Promise.all(batch);
     for (const p of pages) allListings.push(...p.results);
   }
 
-  return aggregate(allListings);
+  return aggregate(allListings, roomsFilter);
 }

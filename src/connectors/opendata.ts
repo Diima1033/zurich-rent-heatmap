@@ -48,7 +48,7 @@ const STAT_QUARTIER_MAP: Record<string, { qnr: number; knr: number }> = {
   Hirzenbach: { qnr: 123, knr: 12 },
 };
 
-// ── Zimmerzahl-Filter (rooms=2/3/4) ──────────────────────────────────────────
+// ── Zimmerzahl-Filter (rooms=1..5) ───────────────────────────────────────────
 // Quelle: Stadtquartiere (22), EinheitLang='Wohnung' (CHF/Mt, absolut)
 // qu50 ist direkt CHF/Mt — keine Umrechnung nötig.
 // 6 Stadtquartiere decken einen ganzen Kreis ab und werden auf alle zugehörigen
@@ -90,9 +90,11 @@ const AVG_SIZE_BY_ROOMS: Record<number, number> = {
 };
 
 const ZIMMER_LANG: Record<number, string> = {
+  1: '1 Zimmer',
   2: '2 Zimmer',
   3: '3 Zimmer',
   4: '4 Zimmer',
+  5: '5 Zimmer',
 };
 
 function parseCSVLine(line: string): string[] {
