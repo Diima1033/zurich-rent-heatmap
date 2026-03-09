@@ -11,7 +11,7 @@ import type { PriceData } from '../types';
 
 const FLATFOX_API = 'https://flatfox.ch/api/v1/public-listing/';
 const PAGE_SIZE = 100;
-const MAX_PAGES = 30; // max 3000 Inserate
+const MAX_PAGES = 350; // max 35'000 Inserate (~34'000 aktuell verfügbar)
 
 interface FlatfoxListing {
   pk: number;
@@ -98,8 +98,8 @@ const PLZ_TO_BFS: Record<string, string> = {
   '8305': '54',  // Dietlikon
   '8193': '55',  // Eglisau
   '8424': '56',  // Embrach
-  '8427': '57',  // Freienstein-Teufen (dominiert PLZ 8427/8428 gegenüber Rorbas BFS 68)
-  '8428': '57',
+  '8427': '68',  // Rorbas
+  '8428': '68',
   '8192': '58',  // Glattfelden
   '8182': '59',  // Hochfelden
   '8181': '60',  // Höri
@@ -127,14 +127,14 @@ const PLZ_TO_BFS: Record<string, string> = {
   '8172': '89',  // Niederglatt
   '8155': '90',  // Niederhasli
   '8156': '90',
-  '8166': '91',  // Niederweningen
+  '8166': '93',  // Oberweningen
   '8154': '92',  // Oberglatt
   '8112': '94',  // Otelfingen
   '8158': '95',  // Regensberg
   '8105': '96',  // Regensdorf
   '8106': '96',
   '8153': '97',  // Rümlang
-  '8165': '99',  // Schöfflisdorf (PLZ 8165 wird mit Oberweningen/Schleinikon geteilt)
+  '8165': '93',  // Oberweningen (PLZ 8165 wird mit Schleinikon BFS 98 geteilt)
   '8174': '100', // Stadel
   '8175': '100',
   '8162': '101', // Steinmaur
@@ -224,6 +224,7 @@ const PLZ_TO_BFS: Record<string, string> = {
   '8616': '198',
   '8604': '199', // Volketswil
   '8605': '199',
+  '8606': '194', // Greifensee
   '8306': '200', // Wangen-Brüttisellen
   '8602': '200',
 
@@ -309,17 +310,6 @@ const PLZ_TO_BFS: Record<string, string> = {
   '8314': '296',
 };
 
-// PLZ-Bereiche für Kanton Zürich (grob)
-const ZH_PLZ_RANGES = [
-  [8001, 8099], [8100, 8199], [8200, 8299], [8300, 8399],
-  [8400, 8499], [8500, 8599], [8600, 8699], [8700, 8799],
-  [8800, 8899], [8900, 8999], [8600, 8699],
-] as const;
-
-function isZurichPlz(plz: number): boolean {
-  return ZH_PLZ_RANGES.some(([min, max]) => plz >= min && plz <= max);
-}
-
 function getEffectiveRent(listing: FlatfoxListing): number | null {
   // Bevorzuge Nettomiete, fallback auf Bruttomiete
   const rent = listing.rent_net ?? listing.rent_gross;
@@ -354,7 +344,7 @@ function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[
 
   for (const listing of listings) {
     const plz = String(listing.zipcode);
-    if (!isZurichPlz(listing.zipcode)) continue;
+    // API filtert bereits nach canton=ZH — kein zusätzlicher PLZ-Bereichs-Check nötig
 
     // Clientseitiger Zimmerfilter: 1+ = [1.0, 2.0), 2+ = [2.0, 3.0), ..., 5+ = [5.0, ∞)
     if (roomsFilter !== undefined) {
@@ -370,8 +360,8 @@ function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[
     const rent = getEffectiveRent(listing);
     if (!rent) continue;
 
-    // Datenfehler / Parkplätze ausfiltern
-    if (rent < 400 || rent > 10_000) continue;
+    // Datenfehler / Parkplätze ausfiltern (300 statt 400 damit Studios nicht rausfallen)
+    if (rent < 300 || rent > 10_000) continue;
 
     if (!byPlz.has(plz)) {
       byPlz.set(plz, { city: listing.city, rents: [], rentsM2: [], updated: listing.published });
