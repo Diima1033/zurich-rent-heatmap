@@ -85,6 +85,7 @@ export default function MapComponent({
   const selectedFeatureRef = useRef<{ source: string; id: string | number } | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [legendVisible, setLegendVisible] = useState(true);
+  const tapActiveRef = useRef<boolean>(false);
 
   // Immer aktuellen rooms-Wert im Ref halten
   roomsRef.current = rooms;
@@ -317,7 +318,7 @@ export default function MapComponent({
           map.setFeatureState({ source: 'gemeinden', id: hoveredGemeindeId }, { hovered: false });
         }
         hoveredGemeindeId = null;
-        setTooltip(null);
+        if (!tapActiveRef.current) setTooltip(null);
       });
 
       // Tap/Click für Touch-Geräte (Gemeinden)
@@ -325,6 +326,8 @@ export default function MapComponent({
         if (!e.features?.length) return;
         const props = e.features[0].properties ?? {};
         if (props.avg_rent != null) {
+          tapActiveRef.current = true;
+          setTimeout(() => { tapActiveRef.current = false; }, 300);
           setTooltip(prev =>
             prev?.name === (props.name ?? '') ? null : {
               x: e.point.x,
@@ -375,7 +378,7 @@ export default function MapComponent({
           map.setFeatureState({ source: 'quartiere', id: hoveredId }, { hovered: false });
         }
         hoveredId = null;
-        setTooltip(null);
+        if (!tapActiveRef.current) setTooltip(null);
       });
 
       // Tap/Click für Touch-Geräte (Quartiere)
@@ -383,6 +386,8 @@ export default function MapComponent({
         if (!e.features?.length) return;
         const props = e.features[0].properties ?? {};
         if (props.avg_rent != null) {
+          tapActiveRef.current = true;
+          setTimeout(() => { tapActiveRef.current = false; }, 300);
           setTooltip(prev =>
             prev?.name === (props.qname ?? '') ? null : {
               x: e.point.x,
@@ -490,7 +495,7 @@ export default function MapComponent({
       }
     };
 
-    map.once('moveend', showTooltip);
+    map.once('idle', showTooltip);
     map.fitBounds(
       [[selectedResult.bbox[0], selectedResult.bbox[1]], [selectedResult.bbox[2], selectedResult.bbox[3]]],
       { padding: 80, duration: 700, maxZoom: 14 }
