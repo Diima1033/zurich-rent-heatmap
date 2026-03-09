@@ -331,8 +331,9 @@ export default function MapComponent({
         if (props.avg_rent != null) {
           tapActiveRef.current = true;
           setTimeout(() => { tapActiveRef.current = false; }, 600);
-          setTooltip(prev =>
-            prev?.name === (props.name ?? '') ? null : {
+          const isTouchDevice = window.matchMedia('(hover: none)').matches;
+          setTooltip(prev => {
+            const newTooltip = {
               x: e.point.x,
               y: e.point.y,
               name: props.name ?? '',
@@ -340,8 +341,11 @@ export default function MapComponent({
               avg_rent_m2: Number(props.avg_rent_m2),
               sample_size: Number(props.sample_size),
               synthetic: props.source === 'scraper',
-            }
-          );
+            };
+            // Touch: immer anzeigen. Desktop: toggle
+            if (isTouchDevice) return newTooltip;
+            return prev?.name === (props.name ?? '') ? null : newTooltip;
+          });
         }
       });
 
@@ -391,16 +395,19 @@ export default function MapComponent({
         if (props.avg_rent != null) {
           tapActiveRef.current = true;
           setTimeout(() => { tapActiveRef.current = false; }, 600);
-          setTooltip(prev =>
-            prev?.name === (props.qname ?? '') ? null : {
+          const isTouchDevice = window.matchMedia('(hover: none)').matches;
+          setTooltip(prev => {
+            const newTooltip = {
               x: e.point.x,
               y: e.point.y,
               name: props.qname ?? '',
               avg_rent: Number(props.avg_rent),
               avg_rent_m2: Number(props.avg_rent_m2),
               sample_size: Number(props.sample_size),
-            }
-          );
+            };
+            if (isTouchDevice) return newTooltip;
+            return prev?.name === (props.qname ?? '') ? null : newTooltip;
+          });
         }
       });
 
