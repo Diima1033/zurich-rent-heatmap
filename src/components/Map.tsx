@@ -84,9 +84,10 @@ export default function MapComponent({
   const roomsRef = useRef<number | undefined>(rooms);
   const selectedFeatureRef = useRef<{ source: string; id: string | number } | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const [legendVisible, setLegendVisible] = useState(
-    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
-  );
+  const [legendVisible, setLegendVisible] = useState(true);
+  useEffect(() => {
+    setLegendVisible(window.innerWidth >= 768);
+  }, []);
   const tapActiveRef = useRef<boolean>(false);
 
   // Immer aktuellen rooms-Wert im Ref halten
