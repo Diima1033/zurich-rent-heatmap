@@ -370,6 +370,9 @@ function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[
     const rent = getEffectiveRent(listing);
     if (!rent) continue;
 
+    // Datenfehler / Parkplätze ausfiltern
+    if (rent < 400 || rent > 10_000) continue;
+
     if (!byPlz.has(plz)) {
       byPlz.set(plz, { city: listing.city, rents: [], rentsM2: [], updated: listing.published });
     }
@@ -385,8 +388,17 @@ function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[
   const today = new Date().toISOString().slice(0, 10);
   const result: PriceData[] = [];
 
+  // Debug: Top-10 PLZs nach Inserate-Anzahl loggen
+  const sorted = [...byPlz.entries()].sort((a, b) => b[1].rents.length - a[1].rents.length);
+  const top10 = sorted.slice(0, 10);
+  console.log('[Flatfox] Inserate pro PLZ (Top 10):');
+  for (const [plz, data] of top10) {
+    console.log(`  PLZ ${plz} (${data.city}): ${data.rents.length} Inserate`);
+  }
+
   for (const [plz, data] of byPlz) {
-    if (data.rents.length === 0) continue;
+    // Mindestens 3 gültige Inserate — sonst greift der kantionale Fallback
+    if (data.rents.length < 3) continue;
     const bfsId = PLZ_TO_BFS[plz] ?? `plz-${plz}`;
     const sorted = [...data.rents].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
