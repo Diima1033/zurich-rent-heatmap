@@ -460,6 +460,23 @@ export default function MapComponent({
         .then(data => {
           gemeindenSource.setData(data);
           map.setPaintProperty('gemeinden-fill', 'fill-color', FILL_COLOR_EXPRESSION);
+          // Tooltip der selektierten Gemeinde aktualisieren
+          if (selectedFeatureRef.current) {
+            map.once('idle', () => {
+              const sel = selectedFeatureRef.current;
+              if (!sel) return;
+              const features = map.querySourceFeatures(sel.source, {});
+              const feature = features.find(f => f.id === sel.id);
+              if (feature?.properties) {
+                setTooltip(prev => prev ? {
+                  ...prev,
+                  avg_rent: Number(feature.properties!.avg_rent),
+                  avg_rent_m2: Number(feature.properties!.avg_rent_m2),
+                  sample_size: Number(feature.properties!.sample_size),
+                } : null);
+              }
+            });
+          }
         })
         .catch(console.error);
     }
