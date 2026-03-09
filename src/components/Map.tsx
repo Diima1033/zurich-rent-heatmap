@@ -474,10 +474,13 @@ export default function MapComponent({
     const nameField = selectedResult.layer === 'quartiere' ? 'qname' : 'name';
 
     const showTooltip = () => {
-      const features = map.queryRenderedFeatures(map.getBounds()!.toArray() as unknown as [mapboxgl.PointLike, mapboxgl.PointLike], { layers: [layerId] });
-      const feature = features.find(f => f.properties?.[nameField] === selectedResult.name);
+      // querySourceFeatures funktioniert unabhängig vom Viewport
+      const features = map.querySourceFeatures(source, {
+        sourceLayer: undefined,
+        filter: ['==', ['get', nameField], selectedResult.name],
+      });
+      const feature = features[0];
       if (feature?.properties) {
-        // Feature hervorheben
         if (feature.id != null) {
           map.setFeatureState({ source, id: feature.id }, { selected: true });
           selectedFeatureRef.current = { source, id: feature.id };
@@ -492,9 +495,13 @@ export default function MapComponent({
           sample_size: Number(feature.properties.sample_size),
           synthetic: feature.properties.source === 'scraper',
         });
+      } else {
+        // Fallback: nochmal versuchen wenn Source noch lädt
+        map.once('idle', showTooltip);
       }
     };
 
+    // Warten bis Map still steht UND Source geladen ist
     map.once('idle', showTooltip);
     map.fitBounds(
       [[selectedResult.bbox[0], selectedResult.bbox[1]], [selectedResult.bbox[2], selectedResult.bbox[3]]],
