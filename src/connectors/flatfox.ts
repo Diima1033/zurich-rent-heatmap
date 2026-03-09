@@ -412,7 +412,7 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
       avg_rent_m2: Math.round(medianM2 * 10) / 10,
       sample_size: data.rents.length,
       last_updated: data.updated.slice(0, 10) || today,
-      source: 'scraper',
+      source: 'opendata',
     });
   }
 
