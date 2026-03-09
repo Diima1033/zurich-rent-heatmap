@@ -55,7 +55,7 @@ export default function Home() {
 
         {/* Mobile bottom bar */}
         <div className="md:hidden shrink-0">
-          <Sidebar rooms={rooms} onChange={setRooms} mobile />
+          <Sidebar rooms={rooms} onChange={setRooms} mobile searchData={searchData} onSelectResult={setSelectedResult} />
         </div>
       </div>
     </div>
