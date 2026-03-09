@@ -327,7 +327,7 @@ export default function MapComponent({
         const props = e.features[0].properties ?? {};
         if (props.avg_rent != null) {
           tapActiveRef.current = true;
-          setTimeout(() => { tapActiveRef.current = false; }, 300);
+          setTimeout(() => { tapActiveRef.current = false; }, 600);
           setTooltip(prev =>
             prev?.name === (props.name ?? '') ? null : {
               x: e.point.x,
@@ -387,7 +387,7 @@ export default function MapComponent({
         const props = e.features[0].properties ?? {};
         if (props.avg_rent != null) {
           tapActiveRef.current = true;
-          setTimeout(() => { tapActiveRef.current = false; }, 300);
+          setTimeout(() => { tapActiveRef.current = false; }, 600);
           setTooltip(prev =>
             prev?.name === (props.qname ?? '') ? null : {
               x: e.point.x,
@@ -503,9 +503,10 @@ export default function MapComponent({
 
     // Warten bis Map still steht UND Source geladen ist
     map.once('idle', showTooltip);
+    const isMobile = window.innerWidth < 768;
     map.fitBounds(
       [[selectedResult.bbox[0], selectedResult.bbox[1]], [selectedResult.bbox[2], selectedResult.bbox[3]]],
-      { padding: 80, duration: 700, maxZoom: 14 }
+      { padding: isMobile ? 40 : 100, duration: 700, maxZoom: 13 }
     );
   }, [selectedResult]);
 

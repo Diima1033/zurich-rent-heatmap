@@ -12,6 +12,11 @@ export default function Home() {
   const [searchData, setSearchData] = useState<SearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
 
+  const handleSelectResult = useCallback((result: SearchResult) => {
+    setSelectedResult(null);
+    setTimeout(() => setSelectedResult(result), 50);
+  }, []);
+
   const handleSearchDataReady = useCallback((data: SearchResult[]) => {
     setSearchData(data);
   }, []);
@@ -40,7 +45,7 @@ export default function Home() {
             rooms={rooms}
             onChange={setRooms}
             searchData={searchData}
-            onSelectResult={setSelectedResult}
+            onSelectResult={handleSelectResult}
           />
         </div>
 
@@ -55,7 +60,7 @@ export default function Home() {
 
         {/* Mobile bottom bar */}
         <div className="md:hidden shrink-0">
-          <Sidebar rooms={rooms} onChange={setRooms} mobile searchData={searchData} onSelectResult={setSelectedResult} />
+          <Sidebar rooms={rooms} onChange={setRooms} mobile searchData={searchData} onSelectResult={handleSelectResult} />
         </div>
       </div>
     </div>
