@@ -84,7 +84,9 @@ export default function MapComponent({
   const roomsRef = useRef<number | undefined>(rooms);
   const selectedFeatureRef = useRef<{ source: string; id: string | number } | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const [legendVisible, setLegendVisible] = useState(true);
+  const [legendVisible, setLegendVisible] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
   const tapActiveRef = useRef<boolean>(false);
 
   // Immer aktuellen rooms-Wert im Ref halten
@@ -566,7 +568,7 @@ export default function MapComponent({
 
       {/* Legend toggle button — mobile only, top-right */}
       <button
-        className="md:hidden absolute top-16 right-2 z-20 flex items-center justify-center"
+        className="md:hidden absolute top-2 right-2 z-20 flex items-center justify-center"
         onClick={() => setLegendVisible(v => !v)}
         style={{
           width: 32,
@@ -587,7 +589,7 @@ export default function MapComponent({
       {/* Legend — mobile: top-right (toggleable); desktop: bottom-left */}
       {legendVisible && (
         <div
-          className="absolute top-16 right-2 md:top-auto md:bottom-8 md:left-4 md:right-auto text-xs z-10"
+          className="absolute top-12 right-2 md:top-auto md:bottom-8 md:left-4 md:right-auto text-xs z-10"
           style={{
             background: 'rgba(15,15,26,0.75)',
             backdropFilter: 'blur(16px)',

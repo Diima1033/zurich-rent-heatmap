@@ -101,12 +101,7 @@ export default function Sidebar({ rooms, onChange, mobile, searchData = [], onSe
             placeholder="Gemeinde oder Quartier suchen…"
             onChange={e => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => query.trim().length > 0 && setOpen(true)}
-            className="w-full text-xs rounded-lg px-3 py-2 outline-none placeholder:text-white/25"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.8)',
-            }}
+            className="w-full rounded-lg px-3 py-2 outline-none placeholder:text-white/25" style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
           />
           {open && results.length > 0 && (
             <div
@@ -174,7 +169,7 @@ export default function Sidebar({ rooms, onChange, mobile, searchData = [], onSe
           placeholder="Gemeinde suchen…"
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => query.trim().length > 0 && setOpen(true)}
-          className="w-full text-xs rounded-lg px-3 py-2 outline-none placeholder:text-white/25"
+          className="w-full rounded-lg px-3 py-2 outline-none placeholder:text-white/25" style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
           style={{
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.1)',
