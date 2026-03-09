@@ -13,7 +13,7 @@ const FLATFOX_API = 'https://flatfox.ch/api/v1/public-listing/';
 const PAGE_SIZE = 100;
 const MAX_PAGES = 350; // max 35'000 Inserate (~34'000 aktuell verfügbar)
 
-interface FlatfoxListing {
+export interface FlatfoxListing {
   pk: number;
   offer_type: string;
   object_category: string;
@@ -336,7 +336,7 @@ async function fetchPage(offset: number): Promise<FlatfoxResponse> {
 }
 
 // Aggregiert Listings nach PLZ → PriceData[]
-function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[] {
+export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[] {
   const byPlz = new Map<
     string,
     { city: string; rents: number[]; rentsM2: number[]; updated: string }
