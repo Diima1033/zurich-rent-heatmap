@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { fetchFromKantonal } from '@/connectors/kantonal';
+import { fetchFromFlatfox } from '@/connectors/flatfox';
 
 export async function GET(request: Request) {
   try {
@@ -21,7 +22,10 @@ export async function GET(request: Request) {
       return code === 1 || code === 2;
     });
 
-    const priceData = fetchFromKantonal(gemeindenFeatures, rooms);
+    const flatfoxData = await fetchFromFlatfox(rooms);
+    const flatfoxMap = new Map(flatfoxData.map(p => [p.gemeinde_id, p]));
+    const kantonalData = fetchFromKantonal(gemeindenFeatures, rooms);
+    const priceData = kantonalData.map(k => flatfoxMap.get(k.gemeinde_id) ?? k);
     const priceMap = new Map(priceData.map((p) => [p.gemeinde_id, p]));
 
     const enrichedFeatures = gemeindenFeatures.map((feature) => {
