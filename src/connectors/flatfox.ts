@@ -396,7 +396,8 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
       if (roomsFilter < 6) {
         if (rooms < roomsFilter || rooms >= roomsFilter + 1) continue;
       } else {
-        if (rooms < 6) continue;
+        // 6+ verhält sich identisch zu 5+ (rooms >= 5.0)
+        if (rooms < 5) continue;
       }
     }
 
@@ -464,6 +465,12 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
         source: 'opendata',
       });
     }
+  }
+
+  // Debug: Inserate pro Kreis loggen
+  console.log('[Flatfox] Inserate pro Stadtkreis:');
+  for (const [kreis, bucket] of [...byKreis.entries()].sort((a, b) => a[0] - b[0])) {
+    console.log(`  Kreis ${String(kreis).padStart(2)}: ${bucket.rents.length} Inserate → gemeinde_id="${kreis}"`);
   }
 
   // Kreis-Aggregation ausgeben
