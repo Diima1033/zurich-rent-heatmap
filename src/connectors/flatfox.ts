@@ -476,7 +476,7 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
 
   // Kreis-Aggregation ausgeben
   for (const [kreis, bucket] of byKreis) {
-    if (bucket.rents.length < 3) continue;
+    if (bucket.rents.length < 2) continue;
     result.push({
       gemeinde_id: String(kreis),
       gemeinde_name: `Kreis ${kreis}`,
