@@ -17,6 +17,7 @@ export interface FlatfoxListing {
   pk: number;
   offer_type: string;
   object_category: string;
+  object_type: string;
   rent_net: number | null;
   rent_gross: number | null;
   rent_charges: number | null;
@@ -29,6 +30,12 @@ export interface FlatfoxListing {
   longitude: number | null;
   published: string;
 }
+
+// Typen die keine regulären Mietwohnungen sind und die Preisstatistik verzerren:
+// - FURNISHED_FLAT: möblierte Wohnungen (~50% teurer als unmöbliert)
+// - SINGLE_ROOM: Einzelzimmer (Preis ist Zimmermiete, nicht Wohnungsmiete)
+// - SHARED_FLAT: WG-Zimmer (Preis ist Zimmermiete, nicht Wohnungsmiete)
+const EXCLUDED_OBJECT_TYPES = new Set(['FURNISHED_FLAT', 'SINGLE_ROOM', 'SHARED_FLAT']);
 
 interface FlatfoxResponse {
   count: number;
@@ -375,6 +382,9 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
   for (const listing of listings) {
     // Nur Inserate aus Kanton Zürich behalten — canton=ZH in der API filtert nicht zuverlässig
     if (listing.state !== 'ZH' && (listing.zipcode < 8000 || listing.zipcode > 8999)) continue;
+
+    // Möblierte Wohnungen, WG-Zimmer und Einzelzimmer ausschliessen (verzerren Medianpreise)
+    if (EXCLUDED_OBJECT_TYPES.has(listing.object_type)) continue;
 
     const plz = String(listing.zipcode);
 
