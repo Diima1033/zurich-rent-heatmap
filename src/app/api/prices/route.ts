@@ -33,6 +33,7 @@ export async function GET(request: Request) {
 
     // Flatfox-Cache aggregieren (liefert Kreis-Level-Daten für Stadt ZH)
     const flatfoxData = aggregate(cache.listings, rooms);
+    console.log('[DEBUG route] flatfoxData Kreise:', flatfoxData.filter(p => p.gemeinde_id.length <= 2).map(p => p.gemeinde_id + ':n=' + p.sample_size));
     const flatfoxMap = new Map(flatfoxData.map(p => [p.gemeinde_id, p]));
 
     // Opendata liefert Kreis-Ebene (knr als ID) — Flatfox-Overlay wo vorhanden
