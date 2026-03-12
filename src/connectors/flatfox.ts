@@ -483,10 +483,12 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
       avg_rent_m2: Math.round(calcMedian(bucket.rentsM2.length > 0 ? bucket.rentsM2 : [0]) * 10) / 10,
       sample_size: bucket.rents.length,
       last_updated: bucket.updated.slice(0, 10) || today,
-      source: 'opendata',
+      source: 'flatfox',
       kreis,
     });
   }
+
+  console.log('[Flatfox] Kreis output:', result.filter(p => p.gemeinde_id.length <= 2).map(p => p.gemeinde_id + ':' + p.avg_rent));
 
   return result;
 }
