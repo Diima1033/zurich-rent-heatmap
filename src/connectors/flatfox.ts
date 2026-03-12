@@ -441,6 +441,7 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
   }
 
   for (const [plz, data] of byPlz) {
+    if (!PLZ_TO_KREIS[plz] && plz.startsWith('80')) console.log('[DEBUG] PLZ ohne Kreis-Mapping:', plz);
     const kreis = PLZ_TO_KREIS[plz];
     if (kreis !== undefined) {
       // Stadt Zürich → Kreis-Bucket
@@ -466,6 +467,7 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
       });
     }
   }
+  console.log('[DEBUG] byKreis size:', byKreis.size, 'keys:', [...byKreis.keys()]);
 
   // Debug: Inserate pro Kreis loggen
   console.log('[Flatfox] Inserate pro Stadtkreis:');
