@@ -6,7 +6,7 @@ export interface PriceData {
   avg_rent_m2: number;        // CHF/m²
   sample_size: number;        // Anzahl Datenpunkte (für Konfidenz)
   last_updated: string;       // ISO Date
-  source: 'opendata' | 'scraper' | 'partner_api';
+  source: 'opendata' | 'scraper' | 'partner_api' | 'flatfox';
   // Optional für Stadt Zürich:
   quartier?: string;
   kreis?: number;
