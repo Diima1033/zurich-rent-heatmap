@@ -382,14 +382,12 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
     // Inserate ohne number_of_rooms (null) werden bei allen Kategorien mitgezählt
     if (roomsFilter !== undefined) {
       const rooms = parseFloat(listing.number_of_rooms ?? '');
-      if (!isNaN(rooms)) {
-        if (roomsFilter < 6) {
-          if (rooms < roomsFilter || rooms >= roomsFilter + 1) continue;
-        } else {
-          if (rooms < 6) continue;
-        }
+      if (isNaN(rooms)) continue; // null-Inserate bei spezifischem Filter ignorieren
+      if (roomsFilter < 6) {
+        if (rooms < roomsFilter || rooms >= roomsFilter + 1) continue;
+      } else {
+        if (rooms < 6) continue;
       }
-      // isNaN(rooms) → number_of_rooms war null → nicht filtern, mitzählen
     }
 
     const rent = getEffectiveRent(listing);
