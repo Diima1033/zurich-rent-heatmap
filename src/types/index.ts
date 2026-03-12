@@ -14,7 +14,7 @@ export interface PriceData {
 
 export interface SearchResult {
   name: string;
-  layer: 'quartiere' | 'gemeinden';
+  layer: 'kreise' | 'gemeinden';
   center: [number, number];
   bbox: [number, number, number, number]; // [minLng, minLat, maxLng, maxLat]
 }

@@ -119,20 +119,20 @@ export default function MapComponent({
       const pricesUrl = rooms != null ? `/api/prices?rooms=${rooms}` : '/api/prices';
       const gemeindenPricesUrl = rooms != null ? `/api/gemeinden-prices?rooms=${rooms}` : '/api/gemeinden-prices';
 
-      const [quartiereData, gemeindenPricesData] = await Promise.all([
+      const [kreiseData, gemeindenPricesData] = await Promise.all([
         fetch(pricesUrl).then(r => r.json()),
         fetch(gemeindenPricesUrl).then(r => r.json()),
       ]);
 
       // Search-Daten aus den geladenen GeoJSON-Features extrahieren
       if (onSearchDataReady) {
-        const quartiereResults: SearchResult[] = (quartiereData as GeoJSON.FeatureCollection).features
-          .filter(f => f.properties?.qname)
+        const kreiseResults: SearchResult[] = (kreiseData as GeoJSON.FeatureCollection).features
+          .filter(f => f.properties?.bezeichnung)
           .map(f => {
             const bbox = getGeomBbox(f.geometry);
             return {
-              name: f.properties!.qname as string,
-              layer: 'quartiere' as const,
+              name: f.properties!.bezeichnung as string,
+              layer: 'kreise' as const,
               center: [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2] as [number, number],
               bbox,
             };
@@ -148,7 +148,7 @@ export default function MapComponent({
               bbox,
             };
           });
-        onSearchDataReady([...quartiereResults, ...gemeindenResults]);
+        onSearchDataReady([...kreiseResults, ...gemeindenResults]);
       }
 
       // Gemeinden mit Heatmap-Farben (kantonale Synthetik-Daten)
@@ -227,20 +227,20 @@ export default function MapComponent({
       map.on('sourcedata', diagHandler);
       // ─────────────────────────────────────────────────────────────────────────
 
-      // Stadtquartiere mit Heatmap-Farben
-      map.addSource('quartiere', { type: 'geojson', data: quartiereData, promoteId: 'qnr' });
+      // Stadtkreise mit Heatmap-Farben
+      map.addSource('kreise', { type: 'geojson', data: kreiseData, promoteId: 'objectid' });
 
       // Debug: avg_rent-Typ aus dem ersten Feature loggen
-      const firstFeature = (quartiereData as GeoJSON.FeatureCollection).features[0];
+      const firstFeature = (kreiseData as GeoJSON.FeatureCollection).features[0];
       if (firstFeature) {
         const val = firstFeature.properties?.avg_rent;
         console.log('[Map] avg_rent Beispielwert:', val, '| Typ:', typeof val);
       }
 
       map.addLayer({
-        id: 'quartiere-fill',
+        id: 'kreise-fill',
         type: 'fill',
-        source: 'quartiere',
+        source: 'kreise',
         paint: {
           'fill-color': FILL_COLOR_EXPRESSION,
           'fill-opacity': 0.75,
@@ -248,16 +248,16 @@ export default function MapComponent({
       });
 
       map.addLayer({
-        id: 'quartiere-line',
+        id: 'kreise-line',
         type: 'line',
-        source: 'quartiere',
+        source: 'kreise',
         paint: { 'line-color': '#ffffff', 'line-width': 0.5, 'line-opacity': 0.6 },
       });
 
       map.addLayer({
-        id: 'quartiere-hover',
+        id: 'kreise-hover',
         type: 'fill',
-        source: 'quartiere',
+        source: 'kreise',
         paint: {
           'fill-color': '#ffffff',
           'fill-opacity': [
@@ -349,10 +349,10 @@ export default function MapComponent({
         }
       });
 
-      // Hover + Tooltip für Quartiere (Stadt Zürich Detail-Layer)
+      // Hover + Tooltip für Stadtkreise (Stadt Zürich Detail-Layer)
       let hoveredId: string | number | null = null;
 
-      map.on('mousemove', 'quartiere-fill', (e) => {
+      map.on('mousemove', 'kreise-fill', (e) => {
         if (!e.features?.length) return;
         map.getCanvas().style.cursor = 'pointer';
 
@@ -360,18 +360,18 @@ export default function MapComponent({
         const props = feature.properties ?? {};
 
         if (hoveredId !== null) {
-          map.setFeatureState({ source: 'quartiere', id: hoveredId }, { hovered: false });
+          map.setFeatureState({ source: 'kreise', id: hoveredId }, { hovered: false });
         }
         hoveredId = feature.id ?? null;
         if (hoveredId !== null) {
-          map.setFeatureState({ source: 'quartiere', id: hoveredId }, { hovered: true });
+          map.setFeatureState({ source: 'kreise', id: hoveredId }, { hovered: true });
         }
 
         if (props.avg_rent != null) {
           setTooltip({
             x: e.point.x,
             y: e.point.y,
-            name: props.qname ?? '',
+            name: props.bezeichnung ?? '',
             avg_rent: Number(props.avg_rent),
             avg_rent_m2: Number(props.avg_rent_m2),
             sample_size: Number(props.sample_size),
@@ -379,17 +379,17 @@ export default function MapComponent({
         }
       });
 
-      map.on('mouseleave', 'quartiere-fill', () => {
+      map.on('mouseleave', 'kreise-fill', () => {
         map.getCanvas().style.cursor = '';
         if (hoveredId !== null) {
-          map.setFeatureState({ source: 'quartiere', id: hoveredId }, { hovered: false });
+          map.setFeatureState({ source: 'kreise', id: hoveredId }, { hovered: false });
         }
         hoveredId = null;
         if (!tapActiveRef.current) setTooltip(null);
       });
 
-      // Tap/Click für Touch-Geräte (Quartiere)
-      map.on('click', 'quartiere-fill', (e) => {
+      // Tap/Click für Touch-Geräte (Kreise)
+      map.on('click', 'kreise-fill', (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties ?? {};
         if (props.avg_rent != null) {
@@ -400,13 +400,13 @@ export default function MapComponent({
             const newTooltip = {
               x: e.point.x,
               y: e.point.y,
-              name: props.qname ?? '',
+              name: props.bezeichnung ?? '',
               avg_rent: Number(props.avg_rent),
               avg_rent_m2: Number(props.avg_rent_m2),
               sample_size: Number(props.sample_size),
             };
             if (isTouchDevice) return newTooltip;
-            return prev?.name === (props.qname ?? '') ? null : newTooltip;
+            return prev?.name === (props.bezeichnung ?? '') ? null : newTooltip;
           });
         }
       });
@@ -414,7 +414,7 @@ export default function MapComponent({
       // Tap auf leere Kartenfläche → Tooltip + Selektion löschen
       map.on('click', (e) => {
         const features = map.queryRenderedFeatures(e.point, {
-          layers: ['quartiere-fill', 'gemeinden-fill'],
+          layers: ['kreise-fill', 'gemeinden-fill'],
         });
         if (!features.length) {
           setTooltip(null);
@@ -438,18 +438,18 @@ export default function MapComponent({
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    const quartiereSource = map.getSource('quartiere') as mapboxgl.GeoJSONSource | undefined;
+    const kreiseSource = map.getSource('kreise') as mapboxgl.GeoJSONSource | undefined;
     const gemeindenSource = map.getSource('gemeinden') as mapboxgl.GeoJSONSource | undefined;
-    if (!quartiereSource && !gemeindenSource) return;
+    if (!kreiseSource && !gemeindenSource) return;
 
     const suffix = rooms != null ? `?rooms=${rooms}` : '';
 
-    if (quartiereSource) {
+    if (kreiseSource) {
       fetch(`/api/prices${suffix}`)
         .then(r => r.json())
         .then(data => {
-          quartiereSource.setData(data);
-          map.setPaintProperty('quartiere-fill', 'fill-color', FILL_COLOR_EXPRESSION);
+          kreiseSource.setData(data);
+          map.setPaintProperty('kreise-fill', 'fill-color', FILL_COLOR_EXPRESSION);
         })
         .catch(console.error);
     }
@@ -496,9 +496,9 @@ export default function MapComponent({
       selectedFeatureRef.current = null;
     }
 
-    const source = selectedResult.layer === 'quartiere' ? 'quartiere' : 'gemeinden';
-    const layerId = selectedResult.layer === 'quartiere' ? 'quartiere-fill' : 'gemeinden-fill';
-    const nameField = selectedResult.layer === 'quartiere' ? 'qname' : 'name';
+    const source = selectedResult.layer === 'kreise' ? 'kreise' : 'gemeinden';
+    const layerId = selectedResult.layer === 'kreise' ? 'kreise-fill' : 'gemeinden-fill';
+    const nameField = selectedResult.layer === 'kreise' ? 'bezeichnung' : 'name';
 
     const showTooltip = () => {
       // querySourceFeatures funktioniert unabhängig vom Viewport

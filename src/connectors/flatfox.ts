@@ -310,6 +310,23 @@ const PLZ_TO_BFS: Record<string, string> = {
   '8314': '296',
 };
 
+// PLZ → Stadtkreis (1–12) für Zürich-interne Aggregation
+// Quelle: Amtliches Ortschaftenverzeichnis + Kreis-Quartier-Zuordnung Stadt Zürich
+const PLZ_TO_KREIS: Record<string, number> = {
+  '8001': 1,
+  '8002': 2, '8038': 2, '8041': 2,
+  '8003': 3, '8045': 3, '8047': 3, '8055': 3,
+  '8004': 4,
+  '8005': 5,
+  '8006': 6,
+  '8032': 7, '8044': 7,
+  '8008': 8,
+  '8046': 9, '8048': 9, '8064': 9,
+  '8037': 10, '8049': 10,
+  '8050': 11, '8051': 11, '8052': 11, '8057': 11,
+  '8053': 12,
+};
+
 function getEffectiveRent(listing: FlatfoxListing): number | null {
   // Bevorzuge Nettomiete, fallback auf Bruttomiete
   const rent = listing.rent_net ?? listing.rent_gross;
@@ -336,6 +353,7 @@ async function fetchPage(offset: number): Promise<FlatfoxResponse> {
 }
 
 // Aggregiert Listings nach PLZ → PriceData[]
+// Für Stadt Zürich PLZs: zusätzliche Aggregation auf Kreis-Ebene
 export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[] {
   // Debug: Verteilung der number_of_rooms-Werte aus der API
   const roomCounts = new Map<string, number>();
@@ -393,43 +411,65 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const result: PriceData[] = [];
 
   // Debug: Top-10 PLZs nach Inserate-Anzahl loggen
-  const sorted = [...byPlz.entries()].sort((a, b) => b[1].rents.length - a[1].rents.length);
-  const top10 = sorted.slice(0, 10);
+  const debugSorted = [...byPlz.entries()].sort((a, b) => b[1].rents.length - a[1].rents.length);
   console.log('[Flatfox] Inserate pro PLZ (Top 10):');
-  for (const [plz, data] of top10) {
+  for (const [plz, data] of debugSorted.slice(0, 10)) {
     console.log(`  PLZ ${plz} (${data.city}): ${data.rents.length} Inserate`);
   }
 
+  // Nicht-Zürich PLZs: direkt als BFS-ID ausgeben
+  const result: PriceData[] = [];
+
+  // Stadt Zürich PLZs: nach Kreis aggregieren
+  const byKreis = new Map<number, { rents: number[]; rentsM2: number[]; updated: string }>();
+
+  function calcMedian(arr: number[]): number {
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
+  }
+
   for (const [plz, data] of byPlz) {
-    // Mindestens 3 gültige Inserate — sonst greift der kantionale Fallback
-    if (data.rents.length < 3) continue;
-    const bfsId = PLZ_TO_BFS[plz] ?? `plz-${plz}`;
-    const sorted = [...data.rents].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    const median = sorted.length % 2 === 0
-      ? (sorted[mid - 1] + sorted[mid]) / 2
-      : sorted[mid];
-
-    let medianM2 = 0;
-    if (data.rentsM2.length > 0) {
-      const sortedM2 = [...data.rentsM2].sort((a, b) => a - b);
-      const midM2 = Math.floor(sortedM2.length / 2);
-      medianM2 = sortedM2.length % 2 === 0
-        ? (sortedM2[midM2 - 1] + sortedM2[midM2]) / 2
-        : sortedM2[midM2];
+    const kreis = PLZ_TO_KREIS[plz];
+    if (kreis !== undefined) {
+      // Stadt Zürich → Kreis-Bucket
+      if (!byKreis.has(kreis)) {
+        byKreis.set(kreis, { rents: [], rentsM2: [], updated: data.updated });
+      }
+      const bucket = byKreis.get(kreis)!;
+      bucket.rents.push(...data.rents);
+      bucket.rentsM2.push(...data.rentsM2);
+      if (data.updated > bucket.updated) bucket.updated = data.updated;
+    } else {
+      // Übriger Kanton Zürich → weiterhin PLZ/BFS-Level
+      if (data.rents.length < 3) continue;
+      const bfsId = PLZ_TO_BFS[plz] ?? `plz-${plz}`;
+      result.push({
+        gemeinde_id: bfsId,
+        gemeinde_name: data.city,
+        avg_rent: Math.round(calcMedian(data.rents)),
+        avg_rent_m2: Math.round(calcMedian(data.rentsM2.length > 0 ? data.rentsM2 : [0]) * 10) / 10,
+        sample_size: data.rents.length,
+        last_updated: data.updated.slice(0, 10) || today,
+        source: 'opendata',
+      });
     }
+  }
 
+  // Kreis-Aggregation ausgeben
+  for (const [kreis, bucket] of byKreis) {
+    if (bucket.rents.length < 3) continue;
     result.push({
-      gemeinde_id: bfsId,
-      gemeinde_name: data.city,
-      avg_rent: Math.round(median),
-      avg_rent_m2: Math.round(medianM2 * 10) / 10,
-      sample_size: data.rents.length,
-      last_updated: data.updated.slice(0, 10) || today,
+      gemeinde_id: String(kreis),
+      gemeinde_name: `Kreis ${kreis}`,
+      avg_rent: Math.round(calcMedian(bucket.rents)),
+      avg_rent_m2: Math.round(calcMedian(bucket.rentsM2.length > 0 ? bucket.rentsM2 : [0]) * 10) / 10,
+      sample_size: bucket.rents.length,
+      last_updated: bucket.updated.slice(0, 10) || today,
       source: 'opendata',
+      kreis,
     });
   }
 

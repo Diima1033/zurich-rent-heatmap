@@ -129,11 +129,11 @@ export default function Sidebar({ rooms, onChange, mobile, searchData = [], onSe
                   <span
                     className="text-[9px] shrink-0 px-1.5 py-0.5 rounded-full"
                     style={{
-                      background: r.layer === 'quartiere' ? 'rgba(244,109,67,0.2)' : 'rgba(255,255,255,0.08)',
-                      color: r.layer === 'quartiere' ? '#f46d43' : 'rgba(255,255,255,0.35)',
+                      background: r.layer === 'kreise' ? 'rgba(244,109,67,0.2)' : 'rgba(255,255,255,0.08)',
+                      color: r.layer === 'kreise' ? '#f46d43' : 'rgba(255,255,255,0.35)',
                     }}
                   >
-                    {r.layer === 'quartiere' ? 'Quartier' : 'Gemeinde'}
+                    {r.layer === 'kreise' ? 'Kreis' : 'Gemeinde'}
                   </span>
                 </button>
               ))}
@@ -196,11 +196,11 @@ export default function Sidebar({ rooms, onChange, mobile, searchData = [], onSe
                 <span
                   className="text-[9px] shrink-0 px-1.5 py-0.5 rounded-full"
                   style={{
-                    background: r.layer === 'quartiere' ? 'rgba(244,109,67,0.2)' : 'rgba(255,255,255,0.08)',
-                    color: r.layer === 'quartiere' ? '#f46d43' : 'rgba(255,255,255,0.35)',
+                    background: r.layer === 'kreise' ? 'rgba(244,109,67,0.2)' : 'rgba(255,255,255,0.08)',
+                    color: r.layer === 'kreise' ? '#f46d43' : 'rgba(255,255,255,0.35)',
                   }}
                 >
-                  {r.layer === 'quartiere' ? 'Quartier' : 'Gemeinde'}
+                  {r.layer === 'kreise' ? 'Kreis' : 'Gemeinde'}
                 </span>
               </button>
             ))}

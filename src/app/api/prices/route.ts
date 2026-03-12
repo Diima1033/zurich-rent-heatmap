@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     const [geojsonRaw, cacheRaw, opendataPrices] = await Promise.all([
       readFile(
-        path.join(process.cwd(), 'public/geodata/stadt-zuerich-quartiere.geojson'),
+        path.join(process.cwd(), 'public/geodata/stadt-zuerich-kreise.geojson'),
         'utf-8'
       ),
       readFile(
@@ -31,18 +31,18 @@ export async function GET(request: Request) {
     const geojson = JSON.parse(geojsonRaw);
     const cache = JSON.parse(cacheRaw) as FlatfoxCache;
 
-    // Flatfox-Cache aggregieren (liefert BFS-Level-Daten)
+    // Flatfox-Cache aggregieren (liefert Kreis-Level-Daten für Stadt ZH)
     const flatfoxData = aggregate(cache.listings, rooms);
     const flatfoxMap = new Map(flatfoxData.map(p => [p.gemeinde_id, p]));
 
-    // Opendata liefert Quartier-Ebene (qnr als ID) — Flatfox-Overlay wo möglich
+    // Opendata liefert Kreis-Ebene (knr als ID) — Flatfox-Overlay wo vorhanden
     const opendataMap = new Map(opendataPrices.map(p => [p.gemeinde_id, p]));
     const priceMap = new Map([...opendataMap, ...flatfoxMap]);
 
-    // Preisdaten in GeoJSON-Properties mergen
+    // Preisdaten in GeoJSON-Properties mergen (Kreise: name-Property = Kreis-Nummer als Float)
     const enrichedFeatures = geojson.features.map((feature: GeoJSON.Feature) => {
-      const qnr = String((feature.properties as Record<string, unknown>)['qnr']);
-      const prices = priceMap.get(qnr);
+      const knr = String(Math.round(Number((feature.properties as Record<string, unknown>)['name'])));
+      const prices = priceMap.get(knr);
 
       return {
         ...feature,

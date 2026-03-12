@@ -135,6 +135,36 @@ function parseCSV(text: string): Record<string, string>[] {
   return rows;
 }
 
+function aggregateByKreis(entries: PriceData[]): PriceData[] {
+  const byKreis = new Map<number, { rents: number[]; rentsM2: number[]; samples: number[] }>();
+  for (const entry of entries) {
+    const k = entry.kreis;
+    if (!k) continue;
+    if (!byKreis.has(k)) byKreis.set(k, { rents: [], rentsM2: [], samples: [] });
+    const g = byKreis.get(k)!;
+    g.rents.push(entry.avg_rent);
+    g.rentsM2.push(entry.avg_rent_m2);
+    g.samples.push(entry.sample_size);
+  }
+
+  const calcMedian = (arr: number[]) => {
+    const s = [...arr].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[m - 1] + s[m]) / 2 : s[m];
+  };
+
+  return [...byKreis.entries()].map(([knr, data]) => ({
+    gemeinde_id: String(knr),
+    gemeinde_name: `Kreis ${knr}`,
+    avg_rent: Math.round(calcMedian(data.rents)),
+    avg_rent_m2: Math.round(calcMedian(data.rentsM2) * 10) / 10,
+    sample_size: data.samples.reduce((a, b) => a + b, 0),
+    last_updated: '2024-04-01',
+    source: 'opendata' as const,
+    kreis: knr,
+  }));
+}
+
 export async function fetchFromOpendata(rooms?: number): Promise<PriceData[]> {
   const response = await fetch(CSV_URL, {
     next: { revalidate: 86400 }, // 24h Cache
@@ -227,5 +257,5 @@ export async function fetchFromOpendata(rooms?: number): Promise<PriceData[]> {
     }
   }
 
-  return results;
+  return aggregateByKreis(results);
 }
