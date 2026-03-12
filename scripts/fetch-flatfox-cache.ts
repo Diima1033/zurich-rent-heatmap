@@ -41,7 +41,6 @@ interface FlatfoxResponse {
 
 async function fetchPage(offset: number): Promise<FlatfoxResponse> {
   const params = new URLSearchParams({
-    canton: 'ZH',
     object_category: 'APARTMENT',
     offer_type: 'RENT',
     limit: String(PAGE_SIZE),

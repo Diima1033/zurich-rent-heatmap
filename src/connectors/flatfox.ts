@@ -15,6 +15,7 @@ const MAX_PAGES = 350; // max 35'000 Inserate (~34'000 aktuell verfügbar)
 
 export interface FlatfoxListing {
   pk: number;
+  title: string | null;
   offer_type: string;
   object_category: string;
   object_type: string;
@@ -334,6 +335,28 @@ const PLZ_TO_KREIS: Record<string, number> = {
   '8053': 12,
 };
 
+// Extrahiert Zimmerzahl aus number_of_rooms (bevorzugt) oder aus dem Titel.
+// Unterstützte Muster: '3 ½ rooms', '3.5 rooms', '4 rooms', '2½ rooms'
+function extractRoomsFromTitle(listing: FlatfoxListing): number | null {
+  if (listing.number_of_rooms !== null) {
+    const rooms = parseFloat(listing.number_of_rooms);
+    return isNaN(rooms) ? null : rooms;
+  }
+
+  const title = listing.title;
+  if (!title) return null;
+
+  // "3 ½ rooms" oder "2½ rooms" → n + 0.5
+  const halfMatch = title.match(/(\d+)\s*½\s*(?:rooms?|zimmer)/i);
+  if (halfMatch) return parseFloat(halfMatch[1]) + 0.5;
+
+  // "3.5 rooms", "4 rooms" → parseFloat
+  const decimalMatch = title.match(/(\d+(?:[.,]\d+)?)\s*(?:rooms?|zimmer)/i);
+  if (decimalMatch) return parseFloat(decimalMatch[1].replace(',', '.'));
+
+  return null;
+}
+
 function getEffectiveRent(listing: FlatfoxListing): number | null {
   // Bevorzuge Nettomiete, fallback auf Bruttomiete
   const rent = listing.rent_net ?? listing.rent_gross;
@@ -391,8 +414,8 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
     // Bereichsfilter: 2=[2,3), 3=[3,4), 4=[4,5), 5=[5,6), 6=[6,7), 7=>=7
     // Inserate ohne number_of_rooms (null) werden bei spezifischem Filter ignoriert
     if (roomsFilter !== undefined) {
-      const rooms = parseFloat(listing.number_of_rooms ?? '');
-      if (isNaN(rooms)) continue;
+      const rooms = extractRoomsFromTitle(listing);
+      if (rooms === null) continue;
       if (roomsFilter === 7) {
         if (rooms < 7.0) continue;
       } else {
