@@ -13,11 +13,12 @@ interface SidebarProps {
 
 const ROOM_OPTIONS = [
   { value: undefined, label: 'Alle' },
-  { value: 2, label: '2+' },
-  { value: 3, label: '3+' },
-  { value: 4, label: '4+' },
-  { value: 5, label: '5+' },
-  { value: 6, label: '6+' },
+  { value: 2, label: '2 Zi' },
+  { value: 3, label: '3 Zi' },
+  { value: 4, label: '4 Zi' },
+  { value: 5, label: '5 Zi' },
+  { value: 6, label: '6 Zi' },
+  { value: 7, label: '7+ Zi' },
 ];
 
 function RoomButton({
