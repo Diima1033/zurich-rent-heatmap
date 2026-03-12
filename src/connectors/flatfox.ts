@@ -388,17 +388,12 @@ export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): Pri
 
     const plz = String(listing.zipcode);
 
-    // Clientseitiger Zimmerfilter: 1+ = [1.0, 2.0), 2+ = [2.0, 3.0), ..., 6+ = [6.0, ∞)
-    // Inserate ohne number_of_rooms (null) werden bei allen Kategorien mitgezählt
+    // Clientseitiger Zimmerfilter: 1+ = rooms >= 1.0, 2+ = rooms >= 2.0, etc. — keine obere Grenze
+    // Inserate ohne number_of_rooms (null) werden bei spezifischem Filter ignoriert
     if (roomsFilter !== undefined) {
       const rooms = parseFloat(listing.number_of_rooms ?? '');
-      if (isNaN(rooms)) continue; // null-Inserate bei spezifischem Filter ignorieren
-      if (roomsFilter < 6) {
-        if (rooms < roomsFilter || rooms >= roomsFilter + 1) continue;
-      } else {
-        // 6+ verhält sich identisch zu 5+ (rooms >= 5.0)
-        if (rooms < 5) continue;
-      }
+      if (isNaN(rooms)) continue;
+      if (rooms < roomsFilter) continue;
     }
 
     const rent = getEffectiveRent(listing);
