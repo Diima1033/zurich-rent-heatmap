@@ -337,24 +337,41 @@ async function fetchPage(offset: number): Promise<FlatfoxResponse> {
 
 // Aggregiert Listings nach PLZ → PriceData[]
 export function aggregate(listings: FlatfoxListing[], roomsFilter?: number): PriceData[] {
+  // Debug: Verteilung der number_of_rooms-Werte aus der API
+  const roomCounts = new Map<string, number>();
+  for (const listing of listings) {
+    const key = listing.number_of_rooms ?? 'null';
+    roomCounts.set(key, (roomCounts.get(key) ?? 0) + 1);
+  }
+  const roomsSorted = [...roomCounts.entries()].sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]));
+  console.log(`[Flatfox] number_of_rooms Verteilung (${listings.length} Inserate total):`);
+  for (const [rooms, count] of roomsSorted) {
+    console.log(`  ${rooms.padStart(5)} Zimmer: ${count} Inserate`);
+  }
+
   const byPlz = new Map<
     string,
     { city: string; rents: number[]; rentsM2: number[]; updated: string }
   >();
 
   for (const listing of listings) {
-    const plz = String(listing.zipcode);
-    // API filtert bereits nach canton=ZH — kein zusätzlicher PLZ-Bereichs-Check nötig
+    // Nur Inserate aus Kanton Zürich behalten — canton=ZH in der API filtert nicht zuverlässig
+    if (listing.state !== 'ZH' && (listing.zipcode < 8000 || listing.zipcode > 8999)) continue;
 
-    // Clientseitiger Zimmerfilter: 1+ = [1.0, 2.0), 2+ = [2.0, 3.0), ..., 5+ = [5.0, ∞)
+    const plz = String(listing.zipcode);
+
+    // Clientseitiger Zimmerfilter: 1+ = [1.0, 2.0), 2+ = [2.0, 3.0), ..., 6+ = [6.0, ∞)
+    // Inserate ohne number_of_rooms (null) werden bei allen Kategorien mitgezählt
     if (roomsFilter !== undefined) {
       const rooms = parseFloat(listing.number_of_rooms ?? '');
-      if (isNaN(rooms)) continue;
-      if (roomsFilter < 5) {
-        if (rooms < roomsFilter || rooms >= roomsFilter + 1) continue;
-      } else {
-        if (rooms < 5) continue;
+      if (!isNaN(rooms)) {
+        if (roomsFilter < 6) {
+          if (rooms < roomsFilter || rooms >= roomsFilter + 1) continue;
+        } else {
+          if (rooms < 6) continue;
+        }
       }
+      // isNaN(rooms) → number_of_rooms war null → nicht filtern, mitzählen
     }
 
     const rent = getEffectiveRent(listing);

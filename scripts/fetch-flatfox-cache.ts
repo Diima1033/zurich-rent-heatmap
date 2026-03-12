@@ -77,6 +77,17 @@ async function main() {
   }
   console.log();
 
+  // Debug: Inserate pro number_of_rooms
+  const roomCounts: Record<string, number> = {};
+  for (const l of allListings) {
+    const key = l.number_of_rooms ?? 'null';
+    roomCounts[key] = (roomCounts[key] ?? 0) + 1;
+  }
+  console.log('[fetch-flatfox-cache] Inserate pro number_of_rooms:');
+  for (const [rooms, count] of Object.entries(roomCounts).sort()) {
+    console.log(`  ${rooms}: ${count}`);
+  }
+
   const outDir = path.join(process.cwd(), 'public/data');
   await mkdir(outDir, { recursive: true });
 
